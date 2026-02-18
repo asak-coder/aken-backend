@@ -1,17 +1,18 @@
-const sendEmail = require("../utils/sendEmail");
 const express = require("express");
 const router = express.Router();
 const Lead = require("../models/Lead");
+const sendEmail = require("../utils/sendEmail");
 
 
+// ===============================
+// POST - Create Lead
+// ===============================
 router.post("/", async (req, res) => {
-  console.log("BODY RECEIVED:", req.body);
-
   try {
     const lead = new Lead(req.body);
     await lead.save();
 
-    // 🔥 Make email non-blocking
+    // Non-blocking email
     sendEmail(req.body).catch(err => {
       console.error("Email error:", err);
     });
@@ -24,5 +25,19 @@ router.post("/", async (req, res) => {
   }
 });
 
-module.exports = router;
 
+// ===============================
+// GET - Fetch All Leads
+// ===============================
+router.get("/", async (req, res) => {
+  try {
+    const leads = await Lead.find().sort({ createdAt: -1 });
+    res.status(200).json(leads);
+  } catch (error) {
+    console.error("Fetch error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
+module.exports = router;
