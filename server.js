@@ -7,26 +7,32 @@ const leadRoutes = require("./routes/leadRoutes");
 
 const app = express();
 
-// ✅ CORS FIXED
+// ✅ 1️⃣ CORS FIRST
 app.use(cors({
   origin: [
     "https://aken.firm.in",
     "https://www.aken.firm.in",
     "https://aken-frontend.vercel.app"
   ],
-  credentials: true
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
 }));
 
+// ✅ 2️⃣ Handle preflight globally
 app.options("*", cors());
 
+// ✅ 3️⃣ Body parser
 app.use(express.json());
 
+// ✅ 4️⃣ Routes AFTER CORS
 app.use("/api/leads", leadRoutes);
 
+// Test route
 app.get("/", (req, res) => {
   res.send("Aken Backend API Running");
 });
 
+// MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log(err));
