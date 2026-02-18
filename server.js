@@ -12,13 +12,12 @@ app.use(express.json());
 app.use(cors({
   origin: [
     "https://aken.firm.in",
-    "https://www.aken.firm.in"
+    "https://www.aken.firm.in",
+    "https://aken-frontend.vercel.app"
   ],
-  credentials: true
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
 }));
-
-app.options("*", cors());
-
 
 app.use("/api/leads", leadRoutes);
 
