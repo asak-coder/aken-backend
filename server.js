@@ -1,5 +1,5 @@
-const express = require("express");
 const cors = require("cors");
+const express = require("express");
 const mongoose = require("mongoose");
 require("dotenv").config();
 
@@ -7,14 +7,17 @@ const leadRoutes = require("./routes/leadRoutes");
 
 const app = express();
 
-// Proper CORS config
+// ✅ CORS FIXED
 app.use(cors({
   origin: [
     "https://aken.firm.in",
     "https://www.aken.firm.in",
     "https://aken-frontend.vercel.app"
-  ]
+  ],
+  credentials: true
 }));
+
+app.options("*", cors());
 
 app.use(express.json());
 
