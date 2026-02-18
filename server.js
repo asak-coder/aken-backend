@@ -9,7 +9,7 @@ const app = express();
 
 app.use(express.json());
 
-app.use(cors({
+const corsOptions = {
   origin: [
     "https://aken.firm.in",
     "https://www.aken.firm.in",
@@ -17,11 +17,13 @@ app.use(cors({
   ],
   methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type"],
-  credentials: false
-}));
+  optionsSuccessStatus: 200
+};
 
-// IMPORTANT: Explicitly allow preflight
-app.options("/api/leads", cors());
+app.use(cors(corsOptions));
+
+// IMPORTANT: Handle all preflight globally
+app.options("*", cors(corsOptions));
 
 app.use("/api/leads", leadRoutes);
 
