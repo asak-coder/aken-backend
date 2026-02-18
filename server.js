@@ -7,23 +7,8 @@ const leadRoutes = require("./routes/leadRoutes");
 
 const app = express();
 
+app.use(cors());            // ✅ SIMPLE & CORRECT
 app.use(express.json());
-
-const corsOptions = {
-  origin: [
-    "https://aken.firm.in",
-    "https://www.aken.firm.in",
-    "https://aken-frontend.vercel.app"
-  ],
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
-
-// IMPORTANT: Handle all preflight globally
-app.options("*", cors(corsOptions));
 
 app.use("/api/leads", leadRoutes);
 
