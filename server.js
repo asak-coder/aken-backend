@@ -1,3 +1,4 @@
+const cors = require("cors");
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -9,6 +10,17 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(cors({
+  origin: [
+    "https://aken.firm.in",
+    "https://www.aken.firm.in",
+    "https://aken-frontend.vercel.app"
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+  credentials: false
+}));
+app.options("*", cors());
 
 app.use("/api/leads", leadRoutes);
 
