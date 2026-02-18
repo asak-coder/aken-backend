@@ -15,20 +15,16 @@ app.use(cors({
     "https://www.aken.firm.in",
     "https://aken-frontend.vercel.app"
   ],
-  methods: ["GET", "POST", "OPTIONS"],
+  methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type"]
 }));
 
-app.options("*", cors());
-
 app.use("/api/leads", leadRoutes);
 
-// Test route
 app.get("/", (req, res) => {
   res.send("Aken Backend API Running");
 });
 
-// Connect MongoDB
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
   .catch(err => console.log(err));
