@@ -16,10 +16,10 @@ app.use(cors({
     "https://aken-frontend.vercel.app"
   ],
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
-  credentials: false
+  allowedHeaders: ["Content-Type"]
 }));
-app.options("*", cors());
+
+
 
 app.use("/api/leads", leadRoutes);
 
