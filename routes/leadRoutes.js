@@ -72,6 +72,21 @@ router.put("/:id/status", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+// UPDATE LEAD (Deal Value or Status)
+router.put("/:id", async (req, res) => {
+  try {
+    const updatedLead = await Lead.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    res.status(200).json(updatedLead);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 
 module.exports = router;
