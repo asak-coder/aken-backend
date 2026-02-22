@@ -4,9 +4,11 @@ const mongoose = require("mongoose");
 require("dotenv").config();
 
 const leadRoutes = require("./routes/leadRoutes");
+const quotationRoutes = require("./routes/quotationRoutes");
+
 
 const app = express();
-
+app.use("/api/quotations", quotationRoutes);
 app.use(cors());            // ✅ SIMPLE & CORRECT
 app.use(express.json());
 

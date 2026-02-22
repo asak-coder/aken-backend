@@ -87,6 +87,19 @@ router.put("/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+router.post("/:id/notes", async (req, res) => {
+  const { text } = req.body;
 
+  const lead = await Lead.findById(req.params.id);
 
+  lead.notes.push({
+    text,
+    addedBy: req.user.id
+  });
+
+  await lead.save();
+
+  res.json({ message: "Note added" });
+});
+followUpDate: Date,
 module.exports = router;

@@ -15,6 +15,18 @@ const leadSchema = new mongoose.Schema(
     owner: {
       type: String,
       default: "Unassigned"
+    },
+    notes: [
+      {
+        text: String,
+        addedBy: String,
+        createdAt: { type: Date, default: Date.now }
+      }
+    ],
+    dealValue: Number,
+    probability: {
+      type: Number,
+      default: 50
     }
   },
   { timestamps: true }
