@@ -12,6 +12,10 @@ const leadSchema = new mongoose.Schema(
       enum: ["New", "Contacted", "Quoted", "Closed"],
       default: "New",
     },
+    owner: {
+      type: String,
+      default: "Unassigned"
+    }
   },
   { timestamps: true }
 );
