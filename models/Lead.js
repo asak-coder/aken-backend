@@ -129,6 +129,36 @@ const leadSchema = new mongoose.Schema(
         default: null,
       },
     },
+    whatsappNotifications: {
+      adminNotifiedAt: {
+        type: Date,
+        default: null,
+      },
+      clientAcknowledgedAt: {
+        type: Date,
+        default: null,
+      },
+      lastAttemptAt: {
+        type: Date,
+        default: null,
+      },
+      attemptCount: {
+        type: Number,
+        default: 0,
+      },
+      lastError: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: null,
+      },
+      lastFallbackUrl: {
+        type: String,
+        trim: true,
+        maxlength: 500,
+        default: null,
+      },
+    },
     notes: [
       {
         text: {
@@ -162,5 +192,6 @@ leadSchema.index({ ownerId: 1, status: 1 });
 leadSchema.index({ createdAt: -1 });
 leadSchema.index({ utmSource: 1, utmCampaign: 1, createdAt: -1 });
 leadSchema.index({ "emailNotifications.adminNotifiedAt": 1, createdAt: -1 });
+leadSchema.index({ "whatsappNotifications.adminNotifiedAt": 1, createdAt: -1 });
 
 module.exports = mongoose.model("Lead", leadSchema);

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Lead = require("../models/Lead");
+const Quotation = require("../models/Quotation");
 const {
   validateCreateLead,
   validateLeadStatusUpdate,
@@ -17,6 +18,11 @@ const {
 const {
   sendLeadNotificationEmails,
 } = require("../utils/leadEmailNotifications");
+const {
+  sendLeadWhatsAppNotifications,
+} = require("../utils/leadWhatsAppNotifications");
+const { sendError, sendSuccess } = require("../utils/apiResponse");
+const { log } = require("../utils/requestLogger");
 
 // ===============================
 // POST - Create Lead
@@ -36,20 +42,30 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
 
     // Non-blocking lead notifications (admin + client acknowledgement).
     sendLeadNotificationEmails(lead._id).catch((err) => {
-      console.error("Lead notification error:", err);
+      log("error", req, "Lead email notification failed", {
+        leadId: String(lead._id),
+        errMessage: err.message,
+      });
+    });
+    sendLeadWhatsAppNotifications(lead._id).catch((err) => {
+      log("error", req, "Lead WhatsApp notification failed", {
+        leadId: String(lead._id),
+        errMessage: err.message,
+      });
     });
 
-    res.status(201).json({
+    return sendSuccess(res, req, {
       message: "Lead saved successfully",
       leadId: lead._id,
       owner: lead.owner,
       ownerId: lead.ownerId,
-    });
-
+    }, 201);
   } catch (error) {
-    console.error("Main error:", error);
-    res.status(error.statusCode || 500).json({
-      error: error.message || "Internal server error",
+    return sendError(res, req, {
+      statusCode: error.statusCode || 500,
+      code: "LEAD_CREATE_FAILED",
+      message: error.message || "Unable to create lead",
+      err: error,
     });
   }
 });
@@ -61,10 +77,14 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
 router.get("/", async (req, res) => {
   try {
     const leads = await Lead.find().sort({ createdAt: -1 });
-    res.status(200).json(leads);
+    return sendSuccess(res, req, leads);
   } catch (error) {
-    console.error("Fetch error:", error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_FETCH_FAILED",
+      message: "Unable to fetch leads",
+      err: error,
+    });
   }
 });
 // CANONICAL: UPDATE LEAD STATUS
@@ -77,13 +97,21 @@ router.put("/:id/status", leadMutationLimiter, validateLeadStatusUpdate, async (
     );
 
     if (!updatedLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "LEAD_NOT_FOUND",
+        message: "Lead not found",
+      });
     }
 
-    res.status(200).json(updatedLead);
+    return sendSuccess(res, req, updatedLead);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_STATUS_UPDATE_FAILED",
+      message: "Unable to update lead status",
+      err: error,
+    });
   }
 });
 // CANONICAL: UPDATE LEAD OWNER
@@ -97,14 +125,20 @@ router.put("/:id/owner", leadMutationLimiter, validateLeadOwnerUpdate, async (re
     );
 
     if (!updatedLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "LEAD_NOT_FOUND",
+        message: "Lead not found",
+      });
     }
 
-    res.status(200).json(updatedLead);
+    return sendSuccess(res, req, updatedLead);
   } catch (error) {
-    console.error(error);
-    res.status(error.statusCode || 500).json({
-      error: error.message || "Internal server error",
+    return sendError(res, req, {
+      statusCode: error.statusCode || 500,
+      code: "LEAD_OWNER_UPDATE_FAILED",
+      message: error.message || "Unable to update lead owner",
+      err: error,
     });
   }
 });
@@ -113,19 +147,55 @@ router.post("/:id/notifications/retry", leadMutationLimiter, async (req, res) =>
   try {
     const leadExists = await Lead.exists({ _id: req.params.id });
     if (!leadExists) {
-      return res.status(404).json({ error: "Lead not found" });
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "LEAD_NOT_FOUND",
+        message: "Lead not found",
+      });
     }
 
     const result = await sendLeadNotificationEmails(req.params.id);
-    res.status(200).json({
+    return sendSuccess(res, req, {
       message: result.ok
         ? "Lead notifications processed successfully."
         : "Lead notifications processed with issues.",
       result,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_EMAIL_RETRY_FAILED",
+      message: "Unable to retry lead email notifications",
+      err: error,
+    });
+  }
+});
+// RETRY WHATSAPP NOTIFICATIONS FOR A LEAD (idempotent)
+router.post("/:id/whatsapp/retry", leadMutationLimiter, async (req, res) => {
+  try {
+    const leadExists = await Lead.exists({ _id: req.params.id });
+    if (!leadExists) {
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "LEAD_NOT_FOUND",
+        message: "Lead not found",
+      });
+    }
+
+    const result = await sendLeadWhatsAppNotifications(req.params.id);
+    return sendSuccess(res, req, {
+      message: result.ok
+        ? "Lead WhatsApp notifications processed successfully."
+        : "Lead WhatsApp notifications processed with issues.",
+      result,
+    });
+  } catch (error) {
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_WHATSAPP_RETRY_FAILED",
+      message: "Unable to retry lead WhatsApp notifications",
+      err: error,
+    });
   }
 });
 // UPDATE LEAD DETAILS (status is intentionally excluded)
@@ -138,35 +208,82 @@ router.put("/:id", leadMutationLimiter, validateLeadUpdate, async (req, res) => 
     );
 
     if (!updatedLead) {
-      return res.status(404).json({ error: "Lead not found" });
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "LEAD_NOT_FOUND",
+        message: "Lead not found",
+      });
     }
 
-    res.status(200).json(updatedLead);
+    return sendSuccess(res, req, updatedLead);
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: error.message });
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_UPDATE_FAILED",
+      message: "Unable to update lead",
+      err: error,
+    });
   }
 });
 router.post("/:id/notes", async (req, res) => {
-  const { text } = req.body;
+  try {
+    const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
+    if (!text) {
+      return sendError(res, req, {
+        statusCode: 400,
+        code: "INVALID_NOTE",
+        message: "Note text is required.",
+      });
+    }
 
-  const lead = await Lead.findById(req.params.id);
+    const lead = await Lead.findById(req.params.id);
+    if (!lead) {
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "LEAD_NOT_FOUND",
+        message: "Lead not found",
+      });
+    }
 
-  lead.notes.push({
-    text,
-    addedBy: req.user.id
-  });
+    lead.notes.push({
+      text,
+      addedBy: req.user?.id || "system",
+    });
 
-  await lead.save();
-
-  res.json({ message: "Note added" });
+    await lead.save();
+    return sendSuccess(res, req, { message: "Note added" });
+  } catch (error) {
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_NOTE_FAILED",
+      message: "Unable to add note",
+      err: error,
+    });
+  }
 });
 router.get("/client/:quotationNumber", async (req, res) => {
-  const quotation = await Quotation.findOne({
-    quotationNumber: req.params.quotationNumber,
-  });
+  try {
+    const quotation = await Quotation.findOne({
+      quotationNumber: req.params.quotationNumber,
+    });
 
-  res.json(quotation);
+    if (!quotation) {
+      return sendError(res, req, {
+        statusCode: 404,
+        code: "QUOTATION_NOT_FOUND",
+        message: "Quotation not found",
+      });
+    }
+
+    return sendSuccess(res, req, quotation);
+  } catch (error) {
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "CLIENT_QUOTATION_FETCH_FAILED",
+      message: "Unable to fetch client quotation",
+      err: error,
+    });
+  }
 });
 
 module.exports = router;
