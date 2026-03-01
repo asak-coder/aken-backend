@@ -1,26 +1,28 @@
-const cors = require("cors");
-const express = require("express");
-const mongoose = require("mongoose");
 require("dotenv").config();
 
+const express = require("express");
+const cors = require("cors");
+const helmet = require("helmet");
+const morgan = require("morgan");
+
+const app = express();   // 👈 CREATE APP FIRST
+
+// Middleware
+app.use(helmet());       // 👈 THEN use it
+app.use(cors());
+app.use(express.json());
+app.use(morgan("combined"));
+
+// Routes
 const leadRoutes = require("./routes/leadRoutes");
 const quotationRoutes = require("./routes/quotationRoutes");
 
-
-const app = express();
-app.use("/api/quotations", quotationRoutes);
-app.use(cors());            // ✅ SIMPLE & CORRECT
-app.use(express.json());
-
 app.use("/api/leads", leadRoutes);
+app.use("/api/quotations", quotationRoutes);
 
-app.get("/", (req, res) => {
-  res.send("Aken Backend API Running");
-});
-
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => console.log(err));
-
+// Port
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});

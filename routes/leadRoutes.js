@@ -3,7 +3,6 @@ const router = express.Router();
 const Lead = require("../models/Lead");
 const sendEmail = require("../utils/sendEmail");
 
-
 // ===============================
 // POST - Create Lead
 // ===============================
@@ -101,5 +100,12 @@ router.post("/:id/notes", async (req, res) => {
 
   res.json({ message: "Note added" });
 });
-followUpDate: Date,
+router.get("/client/:quotationNumber", async (req, res) => {
+  const quotation = await Quotation.findOne({
+    quotationNumber: req.params.quotationNumber,
+  });
+
+  res.json(quotation);
+});
+
 module.exports = router;
