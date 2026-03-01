@@ -164,6 +164,13 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
+  if (startupEnvDiagnostics.summary.criticalFailureCount > 0) {
+    log("warn", null, "Backend environment has critical configuration issues", {
+      criticalFailureCount: startupEnvDiagnostics.summary.criticalFailureCount,
+      readyForProduction: startupEnvDiagnostics.summary.readyForProduction,
+    });
+  }
+
   if (startupEnvDiagnostics.summary.warningCount > 0) {
     log("warn", null, "Backend environment has non-critical warnings", {
       warningCount: startupEnvDiagnostics.summary.warningCount,
