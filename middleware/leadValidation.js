@@ -2,6 +2,18 @@ const LEAD_STATUS_VALUES = ["New", "Contacted", "Quoted", "Closed"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_ALLOWED_REGEX = /^[0-9+\-\s()]{7,20}$/;
 const OWNER_ALLOWED_REGEX = /^[a-zA-Z0-9@ .,_-]{2,120}$/;
+const LEAD_ATTRIBUTION_FIELDS = [
+  { key: "utmSource", max: 120, aliases: ["utm_source"] },
+  { key: "utmMedium", max: 120, aliases: ["utm_medium"] },
+  { key: "utmCampaign", max: 120, aliases: ["utm_campaign"] },
+  { key: "utmTerm", max: 120, aliases: ["utm_term"] },
+  { key: "utmContent", max: 120, aliases: ["utm_content"] },
+  { key: "gclid", max: 200, aliases: [] },
+  { key: "fbclid", max: 200, aliases: [] },
+  { key: "msclkid", max: 200, aliases: [] },
+  { key: "landingPage", max: 300, aliases: ["landing_page"] },
+  { key: "referrerUrl", max: 500, aliases: ["referrer_url"] },
+];
 
 function sanitizeText(value) {
   if (typeof value !== "string") {
@@ -28,6 +40,46 @@ function validatePhone(phone) {
   return digitsOnlyLength >= 7 && digitsOnlyLength <= 15;
 }
 
+function getBodyValueByAliases(body, fieldConfig) {
+  if (body[fieldConfig.key] !== undefined) {
+    return body[fieldConfig.key];
+  }
+
+  for (const alias of fieldConfig.aliases) {
+    if (body[alias] !== undefined) {
+      return body[alias];
+    }
+  }
+
+  return undefined;
+}
+
+function extractLeadAttribution(body, errors) {
+  const attribution = {};
+
+  for (const field of LEAD_ATTRIBUTION_FIELDS) {
+    const rawValue = getBodyValueByAliases(body, field);
+
+    if (rawValue === undefined || rawValue === null) {
+      continue;
+    }
+
+    const value = sanitizeText(String(rawValue));
+    if (!value) {
+      continue;
+    }
+
+    if (value.length > field.max) {
+      errors.push(`${field.key} must be <= ${field.max} characters.`);
+      continue;
+    }
+
+    attribution[field.key] = value;
+  }
+
+  return attribution;
+}
+
 function validateCreateLead(req, res, next) {
   const contactPerson = sanitizeText(req.body.contactPerson);
   const email = sanitizeText(req.body.email).toLowerCase();
@@ -39,6 +91,7 @@ function validateCreateLead(req, res, next) {
     : undefined;
 
   const errors = [];
+  const attribution = extractLeadAttribution(req.body, errors);
 
   if (!contactPerson || contactPerson.length > 100) {
     errors.push("contactPerson is required and must be <= 100 characters.");
@@ -82,6 +135,7 @@ function validateCreateLead(req, res, next) {
     phone,
     message,
     owner,
+    ...attribution,
   };
 
   return next();
@@ -158,6 +212,14 @@ function validateLeadUpdate(req, res, next) {
 
   if (req.body.owner !== undefined) {
     errors.push("Use PUT /api/leads/:id/owner to update lead owner.");
+  }
+
+  for (const field of LEAD_ATTRIBUTION_FIELDS) {
+    if (getBodyValueByAliases(req.body, field) !== undefined) {
+      errors.push(
+        `${field.key} is system-captured. It cannot be manually updated.`,
+      );
+    }
   }
 
   if (req.body.dealValue !== undefined) {

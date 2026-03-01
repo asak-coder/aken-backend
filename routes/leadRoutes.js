@@ -49,7 +49,9 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
 
   } catch (error) {
     console.error("Main error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Internal server error",
+    });
   }
 });
 

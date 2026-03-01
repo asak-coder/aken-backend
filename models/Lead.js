@@ -35,6 +35,56 @@ const leadSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000,
     },
+    utmSource: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    utmMedium: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    utmCampaign: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    utmTerm: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    utmContent: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+    },
+    gclid: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    fbclid: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    msclkid: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+    },
+    landingPage: {
+      type: String,
+      trim: true,
+      maxlength: 300,
+    },
+    referrerUrl: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+    },
     status: {
       type: String,
       enum: ["New", "Contacted", "Quoted", "Closed"],
@@ -86,5 +136,6 @@ const leadSchema = new mongoose.Schema(
 
 leadSchema.index({ ownerId: 1, status: 1 });
 leadSchema.index({ createdAt: -1 });
+leadSchema.index({ utmSource: 1, utmCampaign: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Lead", leadSchema);
