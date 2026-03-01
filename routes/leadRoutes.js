@@ -2,21 +2,50 @@ const express = require("express");
 const router = express.Router();
 const Lead = require("../models/Lead");
 const sendEmail = require("../utils/sendEmail");
+const {
+  validateCreateLead,
+  validateLeadStatusUpdate,
+  validateLeadUpdate,
+  validateLeadOwnerUpdate,
+} = require("../middleware/leadValidation");
+const {
+  leadCreateLimiter,
+  leadMutationLimiter,
+} = require("../middleware/rateLimiters");
+const {
+  resolveLeadOwnerAssignment,
+} = require("../utils/ownerAssignment");
 
 // ===============================
 // POST - Create Lead
 // ===============================
-router.post("/", async (req, res) => {
+router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
   try {
-    const lead = new Lead(req.body);
+    const ownerAssignment = await resolveLeadOwnerAssignment(
+      req.validatedLead.owner,
+    );
+    const leadPayload = {
+      ...req.validatedLead,
+      ...ownerAssignment,
+    };
+
+    const lead = new Lead(leadPayload);
     await lead.save();
 
     // Non-blocking email
-    sendEmail(req.body).catch(err => {
+    sendEmail({
+      ...req.validatedLead,
+      owner: lead.owner,
+    }).catch(err => {
       console.error("Email error:", err);
     });
 
-    res.status(201).json({ message: "Lead saved successfully" });
+    res.status(201).json({
+      message: "Lead saved successfully",
+      leadId: lead._id,
+      owner: lead.owner,
+      ownerId: lead.ownerId,
+    });
 
   } catch (error) {
     console.error("Main error:", error);
@@ -37,16 +66,18 @@ router.get("/", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// UPDATE LEAD STATUS
-router.patch("/:id", async (req, res) => {
+// CANONICAL: UPDATE LEAD STATUS
+router.put("/:id/status", leadMutationLimiter, validateLeadStatusUpdate, async (req, res) => {
   try {
-    const { status } = req.body;
-
     const updatedLead = await Lead.findByIdAndUpdate(
       req.params.id,
-      { status },
-      { new: true }
+      { status: req.validatedStatus },
+      { new: true, runValidators: true }
     );
+
+    if (!updatedLead) {
+      return res.status(404).json({ error: "Lead not found" });
+    }
 
     res.status(200).json(updatedLead);
   } catch (error) {
@@ -54,31 +85,40 @@ router.patch("/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-// UPDATE LEAD STATUS
-router.put("/:id/status", async (req, res) => {
+// CANONICAL: UPDATE LEAD OWNER
+router.put("/:id/owner", leadMutationLimiter, validateLeadOwnerUpdate, async (req, res) => {
   try {
-    const { status } = req.body;
-
+    const ownerAssignment = await resolveLeadOwnerAssignment(req.validatedOwner);
     const updatedLead = await Lead.findByIdAndUpdate(
       req.params.id,
-      { status },
-      { new: true }
+      ownerAssignment,
+      { new: true, runValidators: true }
     );
+
+    if (!updatedLead) {
+      return res.status(404).json({ error: "Lead not found" });
+    }
 
     res.status(200).json(updatedLead);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: error.message });
+    res.status(error.statusCode || 500).json({
+      error: error.message || "Internal server error",
+    });
   }
 });
-// UPDATE LEAD (Deal Value or Status)
-router.put("/:id", async (req, res) => {
+// UPDATE LEAD DETAILS (status is intentionally excluded)
+router.put("/:id", leadMutationLimiter, validateLeadUpdate, async (req, res) => {
   try {
     const updatedLead = await Lead.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true }
+      req.validatedLeadUpdate,
+      { new: true, runValidators: true }
     );
+
+    if (!updatedLead) {
+      return res.status(404).json({ error: "Lead not found" });
+    }
 
     res.status(200).json(updatedLead);
   } catch (error) {

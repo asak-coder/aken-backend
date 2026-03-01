@@ -2,10 +2,11 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { authLoginLimiter } = require("../middleware/rateLimiters");
 
 const router = express.Router();
 
-router.post("/login", async (req, res) => {
+router.post("/login", authLoginLimiter, async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
