@@ -24,6 +24,56 @@ const {
 const { sendError, sendSuccess } = require("../utils/apiResponse");
 const { log } = require("../utils/requestLogger");
 
+const LEAD_STATUS_ORDER = ["New", "Contacted", "Quoted", "Closed"];
+
+function parseIntegerInRange(rawValue, defaultValue, min, max) {
+  const parsed = Number.parseInt(String(rawValue || ""), 10);
+  if (!Number.isFinite(parsed)) {
+    return defaultValue;
+  }
+
+  return Math.min(max, Math.max(min, parsed));
+}
+
+function buildMonthTemplate(monthCount, now) {
+  const formatter = new Intl.DateTimeFormat("en-IN", {
+    month: "short",
+    year: "numeric",
+  });
+  const months = [];
+
+  for (let offset = monthCount - 1; offset >= 0; offset -= 1) {
+    const startDate = new Date(now.getFullYear(), now.getMonth() - offset, 1);
+    const month = String(startDate.getMonth() + 1).padStart(2, "0");
+    const key = `${startDate.getFullYear()}-${month}`;
+
+    months.push({
+      key,
+      label: formatter.format(startDate),
+      startDate,
+    });
+  }
+
+  return months;
+}
+
+function normalizeGroupingValue(value, fallback) {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  const normalized = value.trim();
+  return normalized || fallback;
+}
+
+function toTitleCase(value) {
+  return String(value)
+    .split(/[\s_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 // ===============================
 // POST - Create Lead
 // ===============================
@@ -65,6 +115,355 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
       statusCode: error.statusCode || 500,
       code: "LEAD_CREATE_FAILED",
       message: error.message || "Unable to create lead",
+      err: error,
+    });
+  }
+});
+
+// ===============================
+// GET - Lead Analytics Summary
+// ===============================
+router.get("/analytics/summary", async (req, res) => {
+  try {
+    const months = parseIntegerInRange(req.query.months, 6, 3, 24);
+    const sourceLimit = parseIntegerInRange(req.query.sourceLimit, 8, 3, 20);
+    const ownerLimit = parseIntegerInRange(req.query.ownerLimit, 8, 3, 20);
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const monthTemplate = buildMonthTemplate(months, now);
+    const trendStart =
+      monthTemplate[0]?.startDate || new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [analytics] = await Lead.aggregate([
+      {
+        $facet: {
+          overview: [
+            {
+              $group: {
+                _id: null,
+                totalLeads: { $sum: 1 },
+                newLeads: {
+                  $sum: { $cond: [{ $eq: ["$status", "New"] }, 1, 0] },
+                },
+                contactedLeads: {
+                  $sum: { $cond: [{ $eq: ["$status", "Contacted"] }, 1, 0] },
+                },
+                quotedLeads: {
+                  $sum: { $cond: [{ $eq: ["$status", "Quoted"] }, 1, 0] },
+                },
+                closedLeads: {
+                  $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
+                },
+                wonRevenue: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$status", "Closed"] },
+                      { $ifNull: ["$dealValue", 0] },
+                      0,
+                    ],
+                  },
+                },
+                pipelineRevenue: {
+                  $sum: {
+                    $cond: [
+                      { $in: ["$status", ["New", "Contacted", "Quoted"]] },
+                      { $ifNull: ["$dealValue", 0] },
+                      0,
+                    ],
+                  },
+                },
+                weightedPipelineRevenue: {
+                  $sum: {
+                    $cond: [
+                      { $in: ["$status", ["New", "Contacted", "Quoted"]] },
+                      {
+                        $multiply: [
+                          { $ifNull: ["$dealValue", 0] },
+                          { $divide: [{ $ifNull: ["$probability", 50] }, 100] },
+                        ],
+                      },
+                      0,
+                    ],
+                  },
+                },
+                last7DaysLeads: {
+                  $sum: {
+                    $cond: [{ $gte: ["$createdAt", sevenDaysAgo] }, 1, 0],
+                  },
+                },
+                last30DaysLeads: {
+                  $sum: {
+                    $cond: [{ $gte: ["$createdAt", thirtyDaysAgo] }, 1, 0],
+                  },
+                },
+              },
+            },
+            { $project: { _id: 0 } },
+          ],
+          statusDistribution: [
+            { $group: { _id: "$status", count: { $sum: 1 } } },
+            { $sort: { count: -1, _id: 1 } },
+          ],
+          sourceDistribution: [
+            {
+              $project: {
+                sourceNormalized: {
+                  $toLower: {
+                    $trim: { input: { $ifNull: ["$utmSource", ""] } },
+                  },
+                },
+              },
+            },
+            {
+              $group: {
+                _id: {
+                  $cond: [
+                    { $eq: ["$sourceNormalized", ""] },
+                    "direct",
+                    "$sourceNormalized",
+                  ],
+                },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { count: -1, _id: 1 } },
+            { $limit: sourceLimit },
+          ],
+          ownerDistribution: [
+            {
+              $project: {
+                ownerNormalized: {
+                  $trim: { input: { $ifNull: ["$owner", ""] } },
+                },
+              },
+            },
+            {
+              $group: {
+                _id: {
+                  $cond: [
+                    { $eq: ["$ownerNormalized", ""] },
+                    "Unassigned",
+                    "$ownerNormalized",
+                  ],
+                },
+                count: { $sum: 1 },
+              },
+            },
+            { $sort: { count: -1, _id: 1 } },
+            { $limit: ownerLimit },
+          ],
+          monthlyTrend: [
+            { $match: { createdAt: { $gte: trendStart } } },
+            {
+              $group: {
+                _id: {
+                  $dateToString: {
+                    format: "%Y-%m",
+                    date: "$createdAt",
+                  },
+                },
+                leads: { $sum: 1 },
+                quotedLeads: {
+                  $sum: { $cond: [{ $eq: ["$status", "Quoted"] }, 1, 0] },
+                },
+                closedLeads: {
+                  $sum: { $cond: [{ $eq: ["$status", "Closed"] }, 1, 0] },
+                },
+                wonRevenue: {
+                  $sum: {
+                    $cond: [
+                      { $eq: ["$status", "Closed"] },
+                      { $ifNull: ["$dealValue", 0] },
+                      0,
+                    ],
+                  },
+                },
+                pipelineRevenue: {
+                  $sum: {
+                    $cond: [
+                      { $in: ["$status", ["New", "Contacted", "Quoted"]] },
+                      { $ifNull: ["$dealValue", 0] },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+            { $sort: { _id: 1 } },
+          ],
+          recentLeads: [
+            { $sort: { createdAt: -1 } },
+            { $limit: 10 },
+            {
+              $project: {
+                _id: 1,
+                contactPerson: 1,
+                companyName: 1,
+                status: 1,
+                owner: 1,
+                utmSource: 1,
+                dealValue: 1,
+                createdAt: 1,
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const overviewDefaults = {
+      totalLeads: 0,
+      newLeads: 0,
+      contactedLeads: 0,
+      quotedLeads: 0,
+      closedLeads: 0,
+      wonRevenue: 0,
+      pipelineRevenue: 0,
+      weightedPipelineRevenue: 0,
+      last7DaysLeads: 0,
+      last30DaysLeads: 0,
+    };
+
+    const overviewRaw = analytics?.overview?.[0] || {};
+    const overview = {
+      ...overviewDefaults,
+      ...overviewRaw,
+    };
+
+    const totalLeads = Number(overview.totalLeads) || 0;
+    const closedLeads = Number(overview.closedLeads) || 0;
+    const quotedLeads = Number(overview.quotedLeads) || 0;
+    const wonRevenue = Number(overview.wonRevenue) || 0;
+
+    const conversionRate = totalLeads === 0
+      ? 0
+      : Number(((closedLeads / totalLeads) * 100).toFixed(1));
+
+    const quoteRate = totalLeads === 0
+      ? 0
+      : Number((((quotedLeads + closedLeads) / totalLeads) * 100).toFixed(1));
+
+    const avgDealSize = closedLeads === 0
+      ? 0
+      : Number((wonRevenue / closedLeads).toFixed(2));
+
+    const statusCounts = new Map();
+    for (const item of analytics?.statusDistribution || []) {
+      statusCounts.set(item._id, item.count);
+    }
+
+    const statusDistribution = LEAD_STATUS_ORDER.map((status) => {
+      const count = Number(statusCounts.get(status)) || 0;
+      return {
+        status,
+        count,
+        percentage: totalLeads === 0
+          ? 0
+          : Number(((count / totalLeads) * 100).toFixed(1)),
+      };
+    });
+
+    for (const item of analytics?.statusDistribution || []) {
+      if (LEAD_STATUS_ORDER.includes(item._id)) {
+        continue;
+      }
+
+      const count = Number(item.count) || 0;
+      statusDistribution.push({
+        status: normalizeGroupingValue(item._id, "Unknown"),
+        count,
+        percentage: totalLeads === 0
+          ? 0
+          : Number(((count / totalLeads) * 100).toFixed(1)),
+      });
+    }
+
+    const sourceDistribution = (analytics?.sourceDistribution || []).map((item) => {
+      const sourceKey = normalizeGroupingValue(item._id, "direct").toLowerCase();
+      const source = sourceKey === "direct" ? "Direct / Unknown" : toTitleCase(sourceKey);
+      const count = Number(item.count) || 0;
+      return {
+        source,
+        count,
+        percentage: totalLeads === 0
+          ? 0
+          : Number(((count / totalLeads) * 100).toFixed(1)),
+      };
+    });
+
+    const ownerDistribution = (analytics?.ownerDistribution || []).map((item) => {
+      const owner = normalizeGroupingValue(item._id, "Unassigned");
+      const count = Number(item.count) || 0;
+      return {
+        owner,
+        count,
+        percentage: totalLeads === 0
+          ? 0
+          : Number(((count / totalLeads) * 100).toFixed(1)),
+      };
+    });
+
+    const monthlyMap = new Map();
+    for (const item of analytics?.monthlyTrend || []) {
+      monthlyMap.set(item._id, item);
+    }
+
+    const monthlyTrend = monthTemplate.map((month) => {
+      const item = monthlyMap.get(month.key) || {};
+      const leads = Number(item.leads) || 0;
+      const monthClosedLeads = Number(item.closedLeads) || 0;
+      const monthQuotedLeads = Number(item.quotedLeads) || 0;
+
+      return {
+        month: month.label,
+        key: month.key,
+        leads,
+        quotedLeads: monthQuotedLeads,
+        closedLeads: monthClosedLeads,
+        wonRevenue: Number(item.wonRevenue) || 0,
+        pipelineRevenue: Number(item.pipelineRevenue) || 0,
+        conversionRate: leads === 0
+          ? 0
+          : Number(((monthClosedLeads / leads) * 100).toFixed(1)),
+      };
+    });
+
+    const recentLeads = (analytics?.recentLeads || []).map((lead) => ({
+      ...lead,
+      status: normalizeGroupingValue(lead.status, "New"),
+      owner: normalizeGroupingValue(lead.owner, "Unassigned"),
+      source: normalizeGroupingValue(lead.utmSource, "Direct / Unknown"),
+    }));
+
+    return sendSuccess(res, req, {
+      generatedAt: now.toISOString(),
+      rangeMonths: months,
+      overview: {
+        ...overview,
+        wonRevenue,
+        pipelineRevenue: Number(overview.pipelineRevenue) || 0,
+        weightedPipelineRevenue: Number(overview.weightedPipelineRevenue) || 0,
+        conversionRate,
+        quoteRate,
+        avgDealSize,
+      },
+      statusDistribution,
+      sourceDistribution,
+      ownerDistribution,
+      monthlyTrend,
+      recentLeads,
+    });
+  } catch (error) {
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "LEAD_ANALYTICS_FETCH_FAILED",
+      message: "Unable to fetch lead analytics",
       err: error,
     });
   }
