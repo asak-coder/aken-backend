@@ -7,12 +7,17 @@ const morgan = require("morgan");
 const { apiLimiter } = require("./middleware/rateLimiters");
 const { requestIdMiddleware, log } = require("./utils/requestLogger");
 const { sendError } = require("./utils/apiResponse");
+const {
+  assertBackendEnvForStartup,
+  getBackendEnvDiagnostics,
+} = require("./utils/envValidation");
 
 const app = express();
 app.set("trust proxy", 1);
 app.disable("x-powered-by");
 
 const isProduction = process.env.NODE_ENV === "production";
+const startupEnvDiagnostics = assertBackendEnvForStartup();
 
 const allowedOrigins = (
   process.env.CORS_ORIGINS ||
@@ -97,13 +102,26 @@ app.use("/api", apiLimiter);
 
 const leadRoutes = require("./routes/leadRoutes");
 const quotationRoutes = require("./routes/quotationRoutes");
+const projectRoutes = require("./routes/projectRoutes");
+const revenueRoutes = require("./routes/revenueRoutes");
+const exportRoutes = require("./routes/exportRoutes");
+const systemRoutes = require("./routes/systemRoutes");
 const authRoutes = require("./routes/authRoutes");
 
 app.use("/api/leads", leadRoutes);
 app.use("/api/quotations", quotationRoutes);
+app.use("/api/projects", projectRoutes);
+app.use("/api/revenue", revenueRoutes);
+app.use("/api/export", exportRoutes);
+app.use("/api/system", systemRoutes);
 app.use("/api/auth", authRoutes);
 app.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok" });
+  const latestDiagnostics = getBackendEnvDiagnostics();
+  res.status(200).json({
+    status: "ok",
+    envReady: latestDiagnostics.summary.readyForProduction,
+    envWarnings: latestDiagnostics.summary.warningCount,
+  });
 });
 
 app.use((req, res) => {
@@ -146,5 +164,11 @@ app.use((err, req, res, _next) => {
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
+  if (startupEnvDiagnostics.summary.warningCount > 0) {
+    log("warn", null, "Backend environment has non-critical warnings", {
+      warningCount: startupEnvDiagnostics.summary.warningCount,
+    });
+  }
+
   log("info", null, `Server running on port ${PORT}`);
 });

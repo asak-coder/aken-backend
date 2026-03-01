@@ -5,6 +5,7 @@ const router = express.Router();
 
 const Quotation = require("../models/Quotation");
 const Project = require("../models/Project");
+const Lead = require("../models/Lead");
 const generatePDF = require("../utils/generateQuotationPDF");
 const sendEmail = require("../utils/sendEmail");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
@@ -21,18 +22,40 @@ router.post("/:id/convert", async (req, res) => {
       });
     }
 
+    const existingProject = await Project.findOne({ quotationId: quotation._id });
+    if (existingProject) {
+      return sendSuccess(res, req, {
+        alreadyExists: true,
+        project: existingProject,
+      });
+    }
+
+    const lead = quotation.leadId?._id
+      ? await Lead.findById(quotation.leadId._id)
+      : null;
+
     const project = await Project.create({
       quotationId: quotation._id,
+      leadId: lead?._id || null,
       projectName: `Project - ${quotation.quotationNumber || quotation._id}`,
       clientName:
         quotation.leadId?.companyName || req.body?.clientName || "Unknown Client",
+      projectOwner: lead?.owner || "Unassigned",
       projectValue: quotation.totalAmount || 0,
     });
 
     quotation.status = "Approved";
-    await quotation.save();
+    await quotation.save({ validateBeforeSave: false });
 
-    return sendSuccess(res, req, project);
+    if (lead && lead.status !== "Closed") {
+      lead.status = "Closed";
+      await lead.save();
+    }
+
+    return sendSuccess(res, req, {
+      alreadyExists: false,
+      project,
+    });
   } catch (error) {
     return sendError(res, req, {
       statusCode: 500,

@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Lead = require("../models/Lead");
+const Project = require("../models/Project");
 const Quotation = require("../models/Quotation");
 const {
   validateCreateLead,
@@ -434,11 +435,30 @@ router.get("/analytics/summary", async (req, res) => {
       };
     });
 
-    const recentLeads = (analytics?.recentLeads || []).map((lead) => ({
+    const recentLeadsRaw = analytics?.recentLeads || [];
+    const recentLeadIds = recentLeadsRaw.map((lead) => lead._id).filter(Boolean);
+    const projectsForRecentLeads = recentLeadIds.length > 0
+      ? await Project.find({ leadId: { $in: recentLeadIds } })
+          .select("leadId projectName status")
+          .lean()
+      : [];
+    const projectByLeadId = new Map(
+      projectsForRecentLeads.map((project) => [
+        String(project.leadId),
+        {
+          projectId: project._id,
+          projectName: project.projectName,
+          projectStatus: project.status,
+        },
+      ]),
+    );
+
+    const recentLeads = recentLeadsRaw.map((lead) => ({
       ...lead,
       status: normalizeGroupingValue(lead.status, "New"),
       owner: normalizeGroupingValue(lead.owner, "Unassigned"),
       source: normalizeGroupingValue(lead.utmSource, "Direct / Unknown"),
+      project: projectByLeadId.get(String(lead._id)) || null,
     }));
 
     return sendSuccess(res, req, {
