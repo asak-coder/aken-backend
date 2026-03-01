@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 const Lead = require("../models/Lead");
-const sendEmail = require("../utils/sendEmail");
 const {
   validateCreateLead,
   validateLeadStatusUpdate,
@@ -15,6 +14,9 @@ const {
 const {
   resolveLeadOwnerAssignment,
 } = require("../utils/ownerAssignment");
+const {
+  sendLeadNotificationEmails,
+} = require("../utils/leadEmailNotifications");
 
 // ===============================
 // POST - Create Lead
@@ -32,12 +34,9 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
     const lead = new Lead(leadPayload);
     await lead.save();
 
-    // Non-blocking email
-    sendEmail({
-      ...req.validatedLead,
-      owner: lead.owner,
-    }).catch(err => {
-      console.error("Email error:", err);
+    // Non-blocking lead notifications (admin + client acknowledgement).
+    sendLeadNotificationEmails(lead._id).catch((err) => {
+      console.error("Lead notification error:", err);
     });
 
     res.status(201).json({
@@ -107,6 +106,26 @@ router.put("/:id/owner", leadMutationLimiter, validateLeadOwnerUpdate, async (re
     res.status(error.statusCode || 500).json({
       error: error.message || "Internal server error",
     });
+  }
+});
+// RETRY EMAIL NOTIFICATIONS FOR A LEAD (idempotent)
+router.post("/:id/notifications/retry", leadMutationLimiter, async (req, res) => {
+  try {
+    const leadExists = await Lead.exists({ _id: req.params.id });
+    if (!leadExists) {
+      return res.status(404).json({ error: "Lead not found" });
+    }
+
+    const result = await sendLeadNotificationEmails(req.params.id);
+    res.status(200).json({
+      message: result.ok
+        ? "Lead notifications processed successfully."
+        : "Lead notifications processed with issues.",
+      result,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 });
 // UPDATE LEAD DETAILS (status is intentionally excluded)
