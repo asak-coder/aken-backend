@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
+const { csrfProtection } = require("../middleware/csrf");
 const Lead = require("../models/Lead");
 const Project = require("../models/Project");
 const Quotation = require("../models/Quotation");
@@ -124,7 +126,11 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
 // ===============================
 // GET - Lead Analytics Summary
 // ===============================
-router.get("/analytics/summary", async (req, res) => {
+router.get(
+  "/analytics/summary",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  async (req, res) => {
   try {
     const months = parseIntegerInRange(req.query.months, 6, 3, 24);
     const sourceLimit = parseIntegerInRange(req.query.sourceLimit, 8, 3, 20);
@@ -493,7 +499,7 @@ router.get("/analytics/summary", async (req, res) => {
 // ===============================
 // GET - Fetch All Leads
 // ===============================
-router.get("/", async (req, res) => {
+router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
   try {
     const leads = await Lead.find().sort({ createdAt: -1 });
     return sendSuccess(res, req, leads);
@@ -507,7 +513,14 @@ router.get("/", async (req, res) => {
   }
 });
 // CANONICAL: UPDATE LEAD STATUS
-router.put("/:id/status", leadMutationLimiter, validateLeadStatusUpdate, async (req, res) => {
+router.put(
+  "/:id/status",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  leadMutationLimiter,
+  validateLeadStatusUpdate,
+  async (req, res) => {
   try {
     const updatedLead = await Lead.findByIdAndUpdate(
       req.params.id,
@@ -534,7 +547,14 @@ router.put("/:id/status", leadMutationLimiter, validateLeadStatusUpdate, async (
   }
 });
 // CANONICAL: UPDATE LEAD OWNER
-router.put("/:id/owner", leadMutationLimiter, validateLeadOwnerUpdate, async (req, res) => {
+router.put(
+  "/:id/owner",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  leadMutationLimiter,
+  validateLeadOwnerUpdate,
+  async (req, res) => {
   try {
     const ownerAssignment = await resolveLeadOwnerAssignment(req.validatedOwner);
     const updatedLead = await Lead.findByIdAndUpdate(
@@ -562,7 +582,13 @@ router.put("/:id/owner", leadMutationLimiter, validateLeadOwnerUpdate, async (re
   }
 });
 // RETRY EMAIL NOTIFICATIONS FOR A LEAD (idempotent)
-router.post("/:id/notifications/retry", leadMutationLimiter, async (req, res) => {
+router.post(
+  "/:id/notifications/retry",
+  requireAdminSession,
+  requireRole(["admin"]),
+  csrfProtection,
+  leadMutationLimiter,
+  async (req, res) => {
   try {
     const leadExists = await Lead.exists({ _id: req.params.id });
     if (!leadExists) {
@@ -590,7 +616,13 @@ router.post("/:id/notifications/retry", leadMutationLimiter, async (req, res) =>
   }
 });
 // RETRY WHATSAPP NOTIFICATIONS FOR A LEAD (idempotent)
-router.post("/:id/whatsapp/retry", leadMutationLimiter, async (req, res) => {
+router.post(
+  "/:id/whatsapp/retry",
+  requireAdminSession,
+  requireRole(["admin"]),
+  csrfProtection,
+  leadMutationLimiter,
+  async (req, res) => {
   try {
     const leadExists = await Lead.exists({ _id: req.params.id });
     if (!leadExists) {
@@ -618,7 +650,14 @@ router.post("/:id/whatsapp/retry", leadMutationLimiter, async (req, res) => {
   }
 });
 // UPDATE LEAD DETAILS (status is intentionally excluded)
-router.put("/:id", leadMutationLimiter, validateLeadUpdate, async (req, res) => {
+router.put(
+  "/:id",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  leadMutationLimiter,
+  validateLeadUpdate,
+  async (req, res) => {
   try {
     const updatedLead = await Lead.findByIdAndUpdate(
       req.params.id,
@@ -644,7 +683,12 @@ router.put("/:id", leadMutationLimiter, validateLeadUpdate, async (req, res) => 
     });
   }
 });
-router.post("/:id/notes", async (req, res) => {
+router.post(
+  "/:id/notes",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  async (req, res) => {
   try {
     const text = typeof req.body?.text === "string" ? req.body.text.trim() : "";
     if (!text) {

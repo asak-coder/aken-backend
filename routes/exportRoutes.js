@@ -2,6 +2,8 @@ const express = require("express");
 
 const router = express.Router();
 
+const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
+
 const Lead = require("../models/Lead");
 const Quotation = require("../models/Quotation");
 const Project = require("../models/Project");
@@ -313,7 +315,11 @@ const EXPORT_FETCHERS = {
   invoices: fetchInvoiceExportRows,
 };
 
-router.get("/:entity", async (req, res) => {
+router.get(
+  "/:entity",
+  requireAdminSession,
+  requireRole(["admin"]),
+  async (req, res) => {
   try {
     const entity = sanitizeText(req.params.entity, 30).toLowerCase();
     const format = sanitizeText(req.query.format, 10).toLowerCase() || "csv";
@@ -355,4 +361,3 @@ router.get("/:entity", async (req, res) => {
 });
 
 module.exports = router;
-

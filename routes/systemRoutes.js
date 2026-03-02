@@ -2,10 +2,15 @@ const express = require("express");
 
 const router = express.Router();
 
+const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
 const { sendSuccess, sendError } = require("../utils/apiResponse");
 const { getBackendEnvDiagnostics } = require("../utils/envValidation");
 
-router.get("/env-check", async (req, res) => {
+router.get(
+  "/env-check",
+  requireAdminSession,
+  requireRole(["admin"]),
+  async (req, res) => {
   try {
     const diagnostics = getBackendEnvDiagnostics();
     return sendSuccess(res, req, diagnostics);
@@ -20,4 +25,3 @@ router.get("/env-check", async (req, res) => {
 });
 
 module.exports = router;
-

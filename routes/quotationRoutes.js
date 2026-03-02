@@ -3,6 +3,9 @@ const path = require("path");
 const express = require("express");
 const router = express.Router();
 
+const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
+const { csrfProtection } = require("../middleware/csrf");
+
 const Quotation = require("../models/Quotation");
 const Project = require("../models/Project");
 const Lead = require("../models/Lead");
@@ -11,7 +14,12 @@ const sendEmail = require("../utils/sendEmail");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
 const { log } = require("../utils/requestLogger");
 
-router.post("/:id/convert", async (req, res) => {
+router.post(
+  "/:id/convert",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id).populate("leadId");
     if (!quotation) {
@@ -66,7 +74,12 @@ router.post("/:id/convert", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post(
+  "/",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  async (req, res) => {
   try {
     const quotation = await Quotation.create(req.body);
 
@@ -119,7 +132,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
   try {
     const quotations = await Quotation.find().populate("leadId");
     return sendSuccess(res, req, quotations);

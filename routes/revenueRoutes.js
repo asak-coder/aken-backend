@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const Lead = require("../models/Lead");
+const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
 const Quotation = require("../models/Quotation");
 const Project = require("../models/Project");
 const Invoice = require("../models/Invoice");
@@ -89,7 +90,11 @@ function buildMapByKey(items, key = "_id") {
   return map;
 }
 
-router.get("/overview", async (req, res) => {
+router.get(
+  "/overview",
+  requireAdminSession,
+  requireRole(["admin"]),
+  async (req, res) => {
   try {
     const months = parseIntegerInRange(req.query.months, 6, 3, 24);
     const sourceLimit = parseIntegerInRange(req.query.sourceLimit, 8, 3, 20);

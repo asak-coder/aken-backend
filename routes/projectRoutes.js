@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 const router = express.Router();
 
 const Lead = require("../models/Lead");
+const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
+const { csrfProtection } = require("../middleware/csrf");
 const Project = require("../models/Project");
 const Material = require("../models/Material");
 const LabourEntry = require("../models/LabourEntry");
@@ -376,7 +378,11 @@ function riskScore(level) {
   return 1;
 }
 
-router.get("/summary", async (req, res) => {
+router.get(
+  "/summary",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  async (req, res) => {
   try {
     const [summary, marginRows] = await Promise.all([
       Project.aggregate([
@@ -458,7 +464,11 @@ router.get("/summary", async (req, res) => {
   }
 });
 
-router.get("/margin/overview", async (req, res) => {
+router.get(
+  "/margin/overview",
+  requireAdminSession,
+  requireRole(["admin"]),
+  async (req, res) => {
   try {
     const [projects, invoiceAgg] = await Promise.all([
       Project.find()
@@ -578,7 +588,7 @@ router.get("/margin/overview", async (req, res) => {
   }
 });
 
-router.get("/", async (req, res) => {
+router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
   try {
     const page = parsePositiveInteger(req.query.page, 1, 1, 5000);
     const limit = parsePositiveInteger(req.query.limit, 20, 1, 100);
@@ -647,7 +657,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
       .populate("leadId", "contactPerson companyName status owner")
@@ -672,7 +682,13 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.post("/", leadMutationLimiter, async (req, res) => {
+router.post(
+  "/",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  leadMutationLimiter,
+  async (req, res) => {
   try {
     const { payload, errors } = projectPayloadFromBody(req.body, "create");
 
@@ -697,7 +713,13 @@ router.post("/", leadMutationLimiter, async (req, res) => {
   }
 });
 
-router.post("/from-lead/:leadId", leadMutationLimiter, async (req, res) => {
+router.post(
+  "/from-lead/:leadId",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  leadMutationLimiter,
+  async (req, res) => {
   try {
     const leadId = req.params.leadId;
     if (!isValidObjectId(leadId)) {
@@ -759,7 +781,13 @@ router.post("/from-lead/:leadId", leadMutationLimiter, async (req, res) => {
   }
 });
 
-router.put("/:id", leadMutationLimiter, async (req, res) => {
+router.put(
+  "/:id",
+  requireAdminSession,
+  requireRole(["admin", "sales"]),
+  csrfProtection,
+  leadMutationLimiter,
+  async (req, res) => {
   try {
     const { payload, errors } = projectPayloadFromBody(req.body, "update");
 
@@ -804,7 +832,7 @@ router.put("/:id", leadMutationLimiter, async (req, res) => {
   }
 });
 
-router.get("/:id/margin", async (req, res) => {
+router.get("/:id/margin", requireAdminSession, requireRole(["admin"]), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
 

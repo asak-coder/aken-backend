@@ -1,9 +1,16 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { authLoginLimiter } = require("../middleware/rateLimiters");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
+const {
+  signSessionToken,
+  setSessionCookie,
+  clearSessionCookie,
+  issueCsrfToken,
+  setCsrfCookie,
+} = require("../utils/authCookies");
+const { requireAdminSession } = require("../middleware/adminAuth");
 
 const router = express.Router();
 
@@ -19,7 +26,9 @@ router.post("/login", authLoginLimiter, async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ email: String(email).toLowerCase() });
+    const user = await User.findOne({ email: String(email).toLowerCase() }).select(
+      "+passwordHash",
+    );
     if (!user) {
       return sendError(res, req, {
         statusCode: 401,
@@ -28,7 +37,15 @@ router.post("/login", authLoginLimiter, async (req, res) => {
       });
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    // Temporary compatibility: support legacy `password` field if present (plaintext risk).
+    // After you run a migration to remove `password`, this can be removed.
+    const legacyPassword = typeof user.password === "string" ? user.password : null;
+
+    const isMatch = user.passwordHash
+      ? await bcrypt.compare(password, user.passwordHash)
+      : legacyPassword
+        ? password === legacyPassword
+        : false;
     if (!isMatch) {
       return sendError(res, req, {
         statusCode: 401,
@@ -37,21 +54,18 @@ router.post("/login", authLoginLimiter, async (req, res) => {
       });
     }
 
-    if (!process.env.JWT_SECRET) {
-      return sendError(res, req, {
-        statusCode: 500,
-        code: "AUTH_CONFIG_ERROR",
-        message: "JWT secret is not configured.",
-      });
-    }
+    await User.updateOne({ _id: user._id }, { $set: { lastLoginAt: new Date() } });
 
-    const token = jwt.sign(
-      { id: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "1d" }
-    );
+    const token = signSessionToken({ id: user._id, role: user.role });
 
-    return sendSuccess(res, req, { token, role: user.role });
+    setSessionCookie(res, token);
+    const csrfToken = issueCsrfToken();
+    setCsrfCookie(res, csrfToken);
+
+    return sendSuccess(res, req, {
+      role: user.role,
+      csrfToken,
+    });
   } catch (error) {
     return sendError(res, req, {
       statusCode: 500,
@@ -60,6 +74,32 @@ router.post("/login", authLoginLimiter, async (req, res) => {
       err: error,
     });
   }
+});
+
+router.post("/logout", (_req, res) => {
+  clearSessionCookie(res);
+  // Clear CSRF cookie by overwriting with an empty value and 0 maxAge.
+  res.cookie("aken_csrf", "", {
+    httpOnly: false,
+    secure: String(process.env.NODE_ENV || "").toLowerCase() === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
+
+  return res.status(200).json({ success: true });
+});
+
+router.get("/session", requireAdminSession, (req, res) => {
+  // Issue a fresh CSRF token to the client for subsequent unsafe requests.
+  const csrfToken = issueCsrfToken();
+  setCsrfCookie(res, csrfToken);
+
+  return sendSuccess(res, req, {
+    authenticated: true,
+    user: { id: req.user.id, role: req.user.role },
+    csrfToken,
+  });
 });
 
 module.exports = router;

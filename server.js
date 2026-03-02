@@ -2,6 +2,8 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
+const { connectToDatabase } = require("./utils/db");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const { apiLimiter } = require("./middleware/rateLimiters");
@@ -43,7 +45,7 @@ const corsOptions = {
     callback(new Error(`CORS blocked for origin: ${origin}`));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   credentials: true,
   optionsSuccessStatus: 204,
 };
@@ -77,6 +79,7 @@ app.use(
   })
 );
 app.use(requestIdMiddleware);
+app.use(cookieParser());
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "100kb" }));
@@ -107,6 +110,7 @@ const revenueRoutes = require("./routes/revenueRoutes");
 const exportRoutes = require("./routes/exportRoutes");
 const systemRoutes = require("./routes/systemRoutes");
 const authRoutes = require("./routes/authRoutes");
+const bootstrapRoutes = require("./routes/bootstrapRoutes");
 
 app.use("/api/leads", leadRoutes);
 app.use("/api/quotations", quotationRoutes);
@@ -115,6 +119,7 @@ app.use("/api/revenue", revenueRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/system", systemRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/bootstrap", bootstrapRoutes);
 app.get("/health", (_req, res) => {
   const latestDiagnostics = getBackendEnvDiagnostics();
   res.status(200).json({
@@ -163,19 +168,32 @@ app.use((err, req, res, _next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  if (startupEnvDiagnostics.summary.criticalFailureCount > 0) {
-    log("warn", null, "Backend environment has critical configuration issues", {
-      criticalFailureCount: startupEnvDiagnostics.summary.criticalFailureCount,
-      readyForProduction: startupEnvDiagnostics.summary.readyForProduction,
-    });
-  }
+async function startServer() {
+  try {
+    await connectToDatabase();
 
-  if (startupEnvDiagnostics.summary.warningCount > 0) {
-    log("warn", null, "Backend environment has non-critical warnings", {
-      warningCount: startupEnvDiagnostics.summary.warningCount,
-    });
-  }
+    app.listen(PORT, () => {
+      if (startupEnvDiagnostics.summary.criticalFailureCount > 0) {
+        log("warn", null, "Backend environment has critical configuration issues", {
+          criticalFailureCount: startupEnvDiagnostics.summary.criticalFailureCount,
+          readyForProduction: startupEnvDiagnostics.summary.readyForProduction,
+        });
+      }
 
-  log("info", null, `Server running on port ${PORT}`);
-});
+      if (startupEnvDiagnostics.summary.warningCount > 0) {
+        log("warn", null, "Backend environment has non-critical warnings", {
+          warningCount: startupEnvDiagnostics.summary.warningCount,
+        });
+      }
+
+      log("info", null, `Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    log("error", null, "Backend failed to start", {
+      errMessage: error?.message,
+    });
+    process.exit(1);
+  }
+}
+
+startServer();
