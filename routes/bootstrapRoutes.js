@@ -10,6 +10,13 @@ function isBootstrapAllowed(userCount) {
   return userCount === 0;
 }
 
+function isAdminResetAllowed() {
+  // Allows resetting admin credentials in production using a one-time env token.
+  // This keeps it out of the frontend, and avoids needing DB shell access.
+  const token = String(process.env.ADMIN_RESET_TOKEN || "").trim();
+  return Boolean(token);
+}
+
 function constantTimeEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string") return false;
   if (a.length !== b.length) return false;
@@ -109,6 +116,102 @@ router.post("/admin", async (req, res) => {
       statusCode: 500,
       code: "BOOTSTRAP_FAILED",
       message: "Unable to bootstrap admin.",
+      err: error,
+    });
+  }
+});
+
+router.post("/admin-reset", async (req, res) => {
+  try {
+    const requestedToken =
+      typeof req.headers["x-admin-reset-token"] === "string"
+        ? req.headers["x-admin-reset-token"]
+        : "";
+
+    const configuredToken = String(process.env.ADMIN_RESET_TOKEN || "").trim();
+
+    if (!configuredToken || !requestedToken || !constantTimeEqual(configuredToken, requestedToken)) {
+      return sendError(res, req, {
+        statusCode: 403,
+        code: "ADMIN_RESET_FORBIDDEN",
+        message: "Admin reset is disabled or token is invalid.",
+      });
+    }
+
+    if (!isAdminResetAllowed()) {
+      return sendError(res, req, {
+        statusCode: 403,
+        code: "ADMIN_RESET_DISABLED",
+        message: "Admin reset is disabled.",
+      });
+    }
+
+    const email =
+      typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "Admin";
+
+    if (!email || !password) {
+      return sendError(res, req, {
+        statusCode: 400,
+        code: "ADMIN_RESET_INPUT_INVALID",
+        message: "email and password are required.",
+      });
+    }
+
+    if (String(password).length < 12) {
+      return sendError(res, req, {
+        statusCode: 400,
+        code: "ADMIN_RESET_PASSWORD_WEAK",
+        message: "Password must be at least 12 characters.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // Prefer updating existing admin user. If none, create one.
+    const existingAdmin = await User.findOne({ role: "admin" });
+
+    if (existingAdmin) {
+      existingAdmin.email = email;
+      existingAdmin.name = name;
+      existingAdmin.passwordHash = passwordHash;
+      existingAdmin.lastLoginAt = null;
+      await existingAdmin.save();
+
+      // One-time token: disable after success.
+      process.env.ADMIN_RESET_TOKEN = "";
+
+      return sendSuccess(res, req, {
+        message: "Admin credentials reset successfully.",
+        user: { id: existingAdmin._id, email: existingAdmin.email, role: existingAdmin.role },
+      });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      passwordHash,
+      role: "admin",
+      lastLoginAt: null,
+    });
+
+    process.env.ADMIN_RESET_TOKEN = "";
+
+    return sendSuccess(
+      res,
+      req,
+      {
+        message: "Admin created successfully.",
+        user: { id: user._id, email: user.email, role: user.role },
+      },
+      201,
+    );
+  } catch (error) {
+    return sendError(res, req, {
+      statusCode: 500,
+      code: "ADMIN_RESET_FAILED",
+      message: "Unable to reset admin credentials.",
       err: error,
     });
   }
