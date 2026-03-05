@@ -1,27 +1,45 @@
 const PDFDocument = require("pdfkit");
 const fs = require("fs");
 
-function generateQuotationPDF(quotation, filePath) {
-  const doc = new PDFDocument();
+function safeText(value, maxLen = 500) {
+  const raw = typeof value === "string" ? value : String(value ?? "");
+  // Remove control chars that can mess with PDF rendering/logging
+  const cleaned = raw.replace(/[\u0000-\u001F\u007F]/g, " ").trim();
+  if (!cleaned) return "-";
+  return cleaned.length > maxLen ? `${cleaned.slice(0, maxLen)}…` : cleaned;
+}
 
+function safeNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function generateQuotationPDF(quotation, filePath) {
+  const doc = new PDFDocument({ autoFirstPage: true });
   doc.pipe(fs.createWriteStream(filePath));
 
   doc.fontSize(20).text("A K ENGINEERING", { align: "center" });
   doc.moveDown();
-  doc.text(`Quotation No: ${quotation.quotationNumber}`);
-  doc.text(`Date: ${new Date().toLocaleDateString()}`);
+
+  doc.fontSize(12);
+  doc.text(`Quotation No: ${safeText(quotation?.quotationNumber, 64)}`);
+  doc.text(`Date: ${new Date().toLocaleDateString("en-IN")}`);
   doc.moveDown();
 
-  quotation.items.forEach((item, index) => {
-    doc.text(
-      `${index + 1}. ${item.description} - Qty: ${item.quantity} × ₹${item.rate} = ₹${item.amount}`
-    );
+  const items = Array.isArray(quotation?.items) ? quotation.items.slice(0, 200) : [];
+  items.forEach((item, index) => {
+    const line = `${index + 1}. ${safeText(item?.description, 500)} - Qty: ${safeNumber(
+      item?.quantity,
+      0,
+    )} × ₹${safeNumber(item?.rate, 0)} = ₹${safeNumber(item?.amount, 0)}`;
+
+    doc.text(line);
   });
 
   doc.moveDown();
-  doc.text(`Subtotal: ₹${quotation.subtotal}`);
-  doc.text(`GST: ₹${quotation.gst}`);
-  doc.text(`Total: ₹${quotation.totalAmount}`, { bold: true });
+  doc.text(`Subtotal: ₹${safeNumber(quotation?.subtotal, 0)}`);
+  doc.text(`GST: ₹${safeNumber(quotation?.gst, 0)}`);
+  doc.text(`Total: ₹${safeNumber(quotation?.totalAmount, 0)}`);
 
   doc.end();
 }

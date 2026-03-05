@@ -13,6 +13,7 @@ const generatePDF = require("../utils/generateQuotationPDF");
 const sendEmail = require("../utils/sendEmail");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
 const { log } = require("../utils/requestLogger");
+const { quotationValidation } = require("../middleware/quotationValidation");
 
 router.post(
   "/:id/convert",
@@ -79,6 +80,7 @@ router.post(
   requireAdminSession,
   requireRole(["admin", "sales"]),
   csrfProtection,
+  quotationValidation,
   async (req, res) => {
   try {
     const quotation = await Quotation.create(req.body);

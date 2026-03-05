@@ -11,6 +11,7 @@ const {
   setCsrfCookie,
 } = require("../utils/authCookies");
 const { requireAdminSession } = require("../middleware/adminAuth");
+const { csrfProtection } = require("../middleware/csrf");
 
 const router = express.Router();
 
@@ -37,15 +38,9 @@ router.post("/login", authLoginLimiter, async (req, res) => {
       });
     }
 
-    // Temporary compatibility: support legacy `password` field if present (plaintext risk).
-    // After you run a migration to remove `password`, this can be removed.
-    const legacyPassword = typeof user.password === "string" ? user.password : null;
-
     const isMatch = user.passwordHash
       ? await bcrypt.compare(password, user.passwordHash)
-      : legacyPassword
-        ? password === legacyPassword
-        : false;
+      : false;
     if (!isMatch) {
       return sendError(res, req, {
         statusCode: 401,
@@ -76,7 +71,7 @@ router.post("/login", authLoginLimiter, async (req, res) => {
   }
 });
 
-router.post("/logout", (_req, res) => {
+router.post("/logout", requireAdminSession, csrfProtection, (_req, res) => {
   clearSessionCookie(res);
   // Clear CSRF cookie by overwriting with an empty value and 0 maxAge.
   res.cookie("aken_csrf", "", {

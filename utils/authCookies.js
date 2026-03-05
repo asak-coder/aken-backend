@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 
 const SESSION_COOKIE_NAME = "aken_admin_session";
 const CSRF_COOKIE_NAME = "aken_csrf";
@@ -55,8 +56,8 @@ function clearSessionCookie(res) {
 }
 
 function issueCsrfToken() {
-  // Simple CSRF token. In production, you could use crypto.randomBytes(32).toString("hex").
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  // Cryptographically-strong CSRF token.
+  return crypto.randomBytes(32).toString("hex");
 }
 
 function setCsrfCookie(res, csrfToken) {
