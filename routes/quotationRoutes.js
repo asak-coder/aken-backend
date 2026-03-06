@@ -18,7 +18,7 @@ const { quotationValidation } = require("../middleware/quotationValidation");
 router.post(
   "/:id/convert",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   async (req, res) => {
   try {
@@ -78,7 +78,7 @@ router.post(
 router.post(
   "/",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   quotationValidation,
   async (req, res) => {
@@ -134,7 +134,7 @@ router.post(
   }
 });
 
-router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
+router.get("/", requireAdminSession, requireRole(["admin"]), async (req, res) => {
   try {
     const quotations = await Quotation.find().populate("leadId");
     return sendSuccess(res, req, quotations);
