@@ -1,3 +1,5 @@
+const { sendError } = require("../utils/apiResponse");
+
 const LEAD_STATUS_VALUES = ["New", "Contacted", "Quoted", "Closed"];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_ALLOWED_REGEX = /^[0-9+\-\s()]{7,20}$/;
@@ -86,9 +88,6 @@ function validateCreateLead(req, res, next) {
   const companyName = sanitizeText(req.body.companyName);
   const phone = sanitizeText(req.body.phone);
   const message = sanitizeText(req.body.message);
-  const owner = req.body.owner !== undefined
-    ? sanitizeText(req.body.owner)
-    : undefined;
 
   const errors = [];
   const attribution = extractLeadAttribution(req.body, errors);
@@ -113,17 +112,11 @@ function validateCreateLead(req, res, next) {
     errors.push("message is required and must be <= 2000 characters.");
   }
 
-  if (owner !== undefined) {
-    if (!OWNER_ALLOWED_REGEX.test(owner)) {
-      errors.push(
-        "owner must be 2-120 chars and contain only safe characters.",
-      );
-    }
-  }
-
   if (errors.length > 0) {
-    return res.status(400).json({
-      error: "Validation failed",
+    return sendError(res, req, {
+      statusCode: 400,
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
       details: errors,
     });
   }
@@ -134,7 +127,6 @@ function validateCreateLead(req, res, next) {
     companyName,
     phone,
     message,
-    owner,
     ...attribution,
   };
 
@@ -145,11 +137,11 @@ function validateLeadStatusUpdate(req, res, next) {
   const status = sanitizeText(req.body.status);
 
   if (!LEAD_STATUS_VALUES.includes(status)) {
-    return res.status(400).json({
-      error: "Validation failed",
-      details: [
-        `status must be one of: ${LEAD_STATUS_VALUES.join(", ")}`,
-      ],
+    return sendError(res, req, {
+      statusCode: 400,
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
+      details: [`status must be one of: ${LEAD_STATUS_VALUES.join(", ")}`],
     });
   }
 
@@ -245,8 +237,10 @@ function validateLeadUpdate(req, res, next) {
   }
 
   if (errors.length > 0) {
-    return res.status(400).json({
-      error: "Validation failed",
+    return sendError(res, req, {
+      statusCode: 400,
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
       details: errors,
     });
   }
@@ -259,15 +253,19 @@ function validateLeadOwnerUpdate(req, res, next) {
   const owner = sanitizeText(req.body.owner);
 
   if (!owner) {
-    return res.status(400).json({
-      error: "Validation failed",
+    return sendError(res, req, {
+      statusCode: 400,
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
       details: ["owner is required."],
     });
   }
 
   if (!OWNER_ALLOWED_REGEX.test(owner)) {
-    return res.status(400).json({
-      error: "Validation failed",
+    return sendError(res, req, {
+      statusCode: 400,
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
       details: ["owner must be 2-120 chars and contain only safe characters."],
     });
   }
