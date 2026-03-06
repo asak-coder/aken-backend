@@ -381,7 +381,7 @@ function riskScore(level) {
 router.get(
   "/summary",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   async (req, res) => {
   try {
     const [summary, marginRows] = await Promise.all([
@@ -588,7 +588,7 @@ router.get(
   }
 });
 
-router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
+router.get("/", requireAdminSession, requireRole(["admin"]), async (req, res) => {
   try {
     const page = parsePositiveInteger(req.query.page, 1, 1, 5000);
     const limit = parsePositiveInteger(req.query.limit, 20, 1, 100);
@@ -657,7 +657,7 @@ router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req
   }
 });
 
-router.get("/:id", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
+router.get("/:id", requireAdminSession, requireRole(["admin"]), async (req, res) => {
   try {
     const project = await Project.findById(req.params.id)
       .populate("leadId", "contactPerson companyName status owner")
@@ -685,7 +685,7 @@ router.get("/:id", requireAdminSession, requireRole(["admin", "sales"]), async (
 router.post(
   "/",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   leadMutationLimiter,
   async (req, res) => {
@@ -716,7 +716,7 @@ router.post(
 router.post(
   "/from-lead/:leadId",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   leadMutationLimiter,
   async (req, res) => {
@@ -784,7 +784,7 @@ router.post(
 router.put(
   "/:id",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   leadMutationLimiter,
   async (req, res) => {
