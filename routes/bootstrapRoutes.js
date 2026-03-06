@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 
@@ -11,11 +12,21 @@ function isBootstrapAllowed(userCount) {
 }
 
 function isAdminResetAllowed() {
-  // Allows resetting admin credentials in production using a one-time env token.
-  // This keeps it out of the frontend, and avoids needing DB shell access.
+  // Admin-reset is a dangerous endpoint.
+  // Keep it DISABLED by default and only enable temporarily when needed.
+  const enabled =
+    String(process.env.ENABLE_ADMIN_RESET || "").trim().toLowerCase() === "true";
   const token = String(process.env.ADMIN_RESET_TOKEN || "").trim();
-  return Boolean(token);
+  return enabled && Boolean(token);
 }
+
+const adminResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === "production" ? 5 : 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many admin reset attempts. Please wait 15 minutes." },
+});
 
 function constantTimeEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string") return false;
@@ -121,12 +132,20 @@ router.post("/admin", async (req, res) => {
   }
 });
 
-router.post("/admin-reset", async (req, res) => {
+router.post("/admin-reset", adminResetLimiter, async (req, res) => {
   try {
     const requestedToken =
       typeof req.headers["x-admin-reset-token"] === "string"
         ? req.headers["x-admin-reset-token"]
         : "";
+
+    if (!isAdminResetAllowed()) {
+      return sendError(res, req, {
+        statusCode: 403,
+        code: "ADMIN_RESET_DISABLED",
+        message: "Admin reset is disabled.",
+      });
+    }
 
     const configuredToken = String(process.env.ADMIN_RESET_TOKEN || "").trim();
 
@@ -135,14 +154,6 @@ router.post("/admin-reset", async (req, res) => {
         statusCode: 403,
         code: "ADMIN_RESET_FORBIDDEN",
         message: "Admin reset is disabled or token is invalid.",
-      });
-    }
-
-    if (!isAdminResetAllowed()) {
-      return sendError(res, req, {
-        statusCode: 403,
-        code: "ADMIN_RESET_DISABLED",
-        message: "Admin reset is disabled.",
       });
     }
 
@@ -179,8 +190,9 @@ router.post("/admin-reset", async (req, res) => {
       existingAdmin.lastLoginAt = null;
       await existingAdmin.save();
 
-      // One-time token: disable after success.
-      process.env.ADMIN_RESET_TOKEN = "";
+      // NOTE: We do NOT attempt to mutate process.env in production.
+      // Render will re-inject env vars on restart. To disable, set:
+      // ENABLE_ADMIN_RESET=false (and/or rotate ADMIN_RESET_TOKEN).
 
       return sendSuccess(res, req, {
         message: "Admin credentials reset successfully.",
@@ -196,7 +208,9 @@ router.post("/admin-reset", async (req, res) => {
       lastLoginAt: null,
     });
 
-    process.env.ADMIN_RESET_TOKEN = "";
+    // NOTE: We do NOT attempt to mutate process.env in production.
+    // Render will re-inject env vars on restart. To disable, set:
+    // ENABLE_ADMIN_RESET=false (and/or rotate ADMIN_RESET_TOKEN).
 
     return sendSuccess(
       res,
