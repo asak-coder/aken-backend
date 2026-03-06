@@ -13,8 +13,17 @@ function requireAdminSession(req, res, next) {
     }
 
     const decoded = verifySessionToken(token);
-    req.user = decoded;
 
+    // Enforce admin-only access for the admin dashboard/API.
+    if (!decoded || decoded.role !== "admin") {
+      return sendError(res, req, {
+        statusCode: 403,
+        code: "AUTH_FORBIDDEN",
+        message: "Admin access required.",
+      });
+    }
+
+    req.user = decoded;
     return next();
   } catch (error) {
     return sendError(res, req, {
