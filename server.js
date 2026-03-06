@@ -40,9 +40,9 @@ function corsOriginDelegate(origin, callback) {
   const normalizedAllowlist = allowedOrigins.map((o) => String(o).replace(/\/$/, ""));
 
   if (normalizedAllowlist.includes(normalizedOrigin)) {
-    // IMPORTANT: return the exact origin string so the CORS middleware
-    // emits `Access-Control-Allow-Origin: <origin>` (required with credentials).
-    callback(null, origin);
+    // Return `true` so the cors middleware reflects the request Origin.
+    // (This produces `Access-Control-Allow-Origin: <origin>` automatically.)
+    callback(null, true);
     return;
   }
 
