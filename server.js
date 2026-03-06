@@ -32,17 +32,22 @@ const allowedOrigins = (
 
 const corsOptions = {
   origin(origin, callback) {
+    // Some tools/monitors may omit Origin; allow those.
     if (!origin) {
       callback(null, true);
       return;
     }
 
-    if (allowedOrigins.includes(origin)) {
+    // Normalize common trailing-slash mismatch so the allowlist works reliably.
+    const normalizedOrigin = String(origin).replace(/\/$/, "");
+    const normalizedAllowlist = allowedOrigins.map((o) => String(o).replace(/\/$/, ""));
+
+    if (normalizedAllowlist.includes(normalizedOrigin)) {
       callback(null, true);
       return;
     }
 
-    callback(new Error(`CORS blocked for origin: ${origin}`));
+    callback(new Error(`CORS blocked for origin: ${normalizedOrigin}`));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
