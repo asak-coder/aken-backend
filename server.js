@@ -50,7 +50,12 @@ function corsOriginDelegate(origin, callback) {
 }
 
 const corsOptions = {
-  origin: corsOriginDelegate,
+  // IMPORTANT:
+  // - When `credentials: true`, browsers require an explicit ACAO value (not "*").
+  // - The `cors` package will automatically set `Access-Control-Allow-Origin`
+  //   to the request's Origin when `origin: true`.
+  // We still gate it with our allowlist via `corsOriginDelegate`.
+  origin: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   credentials: true,
@@ -89,6 +94,22 @@ app.use(requestIdMiddleware);
 app.use(cookieParser());
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
+
+// Enforce allowlist (block non-approved origins) AFTER CORS middleware has
+// emitted headers for valid requests.
+app.use((req, _res, next) => {
+  const origin = req.headers.origin;
+  if (!origin) return next();
+
+  const normalizedOrigin = String(origin).replace(/\/$/, "");
+  const normalizedAllowlist = allowedOrigins.map((o) => String(o).replace(/\/$/, ""));
+
+  if (!normalizedAllowlist.includes(normalizedOrigin)) {
+    return next(new Error(`CORS blocked for origin: ${normalizedOrigin}`));
+  }
+
+  return next();
+});
 app.use(express.json({ limit: "100kb" }));
 if (process.env.NODE_ENV === "production") {
   app.use(
