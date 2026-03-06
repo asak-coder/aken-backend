@@ -30,25 +30,27 @@ const allowedOrigins = (
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+function corsOriginDelegate(origin, callback) {
+  if (!origin) {
+    callback(null, true);
+    return;
+  }
+
+  const normalizedOrigin = String(origin).replace(/\/$/, "");
+  const normalizedAllowlist = allowedOrigins.map((o) => String(o).replace(/\/$/, ""));
+
+  if (normalizedAllowlist.includes(normalizedOrigin)) {
+    // IMPORTANT: return the exact origin string so the CORS middleware
+    // emits `Access-Control-Allow-Origin: <origin>` (required with credentials).
+    callback(null, origin);
+    return;
+  }
+
+  callback(new Error(`CORS blocked for origin: ${normalizedOrigin}`));
+}
+
 const corsOptions = {
-  origin(origin, callback) {
-    // Some tools/monitors may omit Origin; allow those.
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-
-    // Normalize common trailing-slash mismatch so the allowlist works reliably.
-    const normalizedOrigin = String(origin).replace(/\/$/, "");
-    const normalizedAllowlist = allowedOrigins.map((o) => String(o).replace(/\/$/, ""));
-
-    if (normalizedAllowlist.includes(normalizedOrigin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error(`CORS blocked for origin: ${normalizedOrigin}`));
-  },
+  origin: corsOriginDelegate,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-CSRF-Token"],
   credentials: true,
