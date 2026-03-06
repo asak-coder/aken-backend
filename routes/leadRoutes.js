@@ -724,29 +724,34 @@ router.post(
     });
   }
 });
-router.get("/client/:quotationNumber", async (req, res) => {
-  try {
-    const quotation = await Quotation.findOne({
-      quotationNumber: req.params.quotationNumber,
-    });
+router.get(
+  "/client/:quotationNumber",
+  requireAdminSession,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const quotation = await Quotation.findOne({
+        quotationNumber: req.params.quotationNumber,
+      });
 
-    if (!quotation) {
+      if (!quotation) {
+        return sendError(res, req, {
+          statusCode: 404,
+          code: "QUOTATION_NOT_FOUND",
+          message: "Quotation not found",
+        });
+      }
+
+      return sendSuccess(res, req, quotation);
+    } catch (error) {
       return sendError(res, req, {
-        statusCode: 404,
-        code: "QUOTATION_NOT_FOUND",
-        message: "Quotation not found",
+        statusCode: 500,
+        code: "CLIENT_QUOTATION_FETCH_FAILED",
+        message: "Unable to fetch client quotation",
+        err: error,
       });
     }
-
-    return sendSuccess(res, req, quotation);
-  } catch (error) {
-    return sendError(res, req, {
-      statusCode: 500,
-      code: "CLIENT_QUOTATION_FETCH_FAILED",
-      message: "Unable to fetch client quotation",
-      err: error,
-    });
-  }
-});
+  },
+);
 
 module.exports = router;
