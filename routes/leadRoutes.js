@@ -129,7 +129,7 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
 router.get(
   "/analytics/summary",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   async (req, res) => {
   try {
     const months = parseIntegerInRange(req.query.months, 6, 3, 24);
@@ -499,7 +499,7 @@ router.get(
 // ===============================
 // GET - Fetch All Leads
 // ===============================
-router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req, res) => {
+router.get("/", requireAdminSession, requireRole(["admin"]), async (req, res) => {
   try {
     const leads = await Lead.find().sort({ createdAt: -1 });
     return sendSuccess(res, req, leads);
@@ -516,7 +516,7 @@ router.get("/", requireAdminSession, requireRole(["admin", "sales"]), async (req
 router.put(
   "/:id/status",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   leadMutationLimiter,
   validateLeadStatusUpdate,
@@ -550,7 +550,7 @@ router.put(
 router.put(
   "/:id/owner",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   leadMutationLimiter,
   validateLeadOwnerUpdate,
@@ -653,7 +653,7 @@ router.post(
 router.put(
   "/:id",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   leadMutationLimiter,
   validateLeadUpdate,
@@ -686,7 +686,7 @@ router.put(
 router.post(
   "/:id/notes",
   requireAdminSession,
-  requireRole(["admin", "sales"]),
+  requireRole(["admin"]),
   csrfProtection,
   async (req, res) => {
   try {
