@@ -93,7 +93,7 @@ router.post(
       const quotesDir = path.resolve(process.cwd(), "quotes");
       fs.mkdirSync(quotesDir, { recursive: true });
       pdfPath = path.join(quotesDir, `${quotation._id}.pdf`);
-      generatePDF(quotation, pdfPath);
+      await generatePDF(quotation, pdfPath);
     }
 
     const clientEmail = req.body?.clientEmail;

@@ -15,33 +15,41 @@ function safeNumber(value, fallback = 0) {
 }
 
 function generateQuotationPDF(quotation, filePath) {
-  const doc = new PDFDocument({ autoFirstPage: true });
-  doc.pipe(fs.createWriteStream(filePath));
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ autoFirstPage: true });
+    const stream = fs.createWriteStream(filePath);
 
-  doc.fontSize(20).text("A K ENGINEERING", { align: "center" });
-  doc.moveDown();
+    stream.on("finish", resolve);
+    stream.on("error", reject);
+    doc.on("error", reject);
 
-  doc.fontSize(12);
-  doc.text(`Quotation No: ${safeText(quotation?.quotationNumber, 64)}`);
-  doc.text(`Date: ${new Date().toLocaleDateString("en-IN")}`);
-  doc.moveDown();
+    doc.pipe(stream);
 
-  const items = Array.isArray(quotation?.items) ? quotation.items.slice(0, 200) : [];
-  items.forEach((item, index) => {
-    const line = `${index + 1}. ${safeText(item?.description, 500)} - Qty: ${safeNumber(
-      item?.quantity,
-      0,
-    )} × ₹${safeNumber(item?.rate, 0)} = ₹${safeNumber(item?.amount, 0)}`;
+    doc.fontSize(20).text("A K ENGINEERING", { align: "center" });
+    doc.moveDown();
 
-    doc.text(line);
+    doc.fontSize(12);
+    doc.text(`Quotation No: ${safeText(quotation?.quotationNumber, 64)}`);
+    doc.text(`Date: ${new Date().toLocaleDateString("en-IN")}`);
+    doc.moveDown();
+
+    const items = Array.isArray(quotation?.items) ? quotation.items.slice(0, 200) : [];
+    items.forEach((item, index) => {
+      const line = `${index + 1}. ${safeText(item?.description, 500)} - Qty: ${safeNumber(
+        item?.quantity,
+        0,
+      )} × ₹${safeNumber(item?.rate, 0)} = ₹${safeNumber(item?.amount, 0)}`;
+
+      doc.text(line);
+    });
+
+    doc.moveDown();
+    doc.text(`Subtotal: ₹${safeNumber(quotation?.subtotal, 0)}`);
+    doc.text(`GST: ₹${safeNumber(quotation?.gst, 0)}`);
+    doc.text(`Total: ₹${safeNumber(quotation?.totalAmount, 0)}`);
+
+    doc.end();
   });
-
-  doc.moveDown();
-  doc.text(`Subtotal: ₹${safeNumber(quotation?.subtotal, 0)}`);
-  doc.text(`GST: ₹${safeNumber(quotation?.gst, 0)}`);
-  doc.text(`Total: ₹${safeNumber(quotation?.totalAmount, 0)}`);
-
-  doc.end();
 }
 
 module.exports = generateQuotationPDF;
