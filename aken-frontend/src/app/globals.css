@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/* =========================
+   Enterprise UI System
+   A K ENGINEERING (Placeholders)
+   Palette:
+   - Engineering Blue (primary)
+   - Steel Grey (secondary)
+   - Construction Orange (accent)
+   ========================= */
+
+:root {
+  /* Base */
+  --background: #ffffff;
+  --foreground: #0b1220;
+
+  /* Brand (placeholders; can be replaced later) */
+  --brand-primary: #0b4fb3; /* engineering blue */
+  --brand-primary-2: #0a3f8c;
+  --brand-secondary: #475569; /* steel grey */
+  --brand-accent: #f97316; /* construction orange */
+
+  /* Surfaces */
+  --surface-0: #ffffff;
+  --surface-1: #f8fafc;
+  --surface-2: #f1f5f9;
+  --surface-3: #0b1220;
+
+  /* Borders / rings */
+  --border: rgba(15, 23, 42, 0.14);
+  --ring: rgba(11, 79, 179, 0.35);
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter,
+    Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+
+  /* Expose brand tokens to Tailwind inline theme (v4) */
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #070a12;
+    --foreground: #e5e7eb;
+
+    --surface-0: #070a12;
+    --surface-1: #0b1220;
+    --surface-2: #0f172a;
+
+    --border: rgba(148, 163, 184, 0.18);
+    --ring: rgba(56, 189, 248, 0.28);
+  }
+}
+
+/* Base */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  text-rendering: geometricPrecision;
+}
+
+/* Enterprise utility classes (used across pages/components) */
+.container-enterprise {
+  max-width: 80rem; /* ~1280px */
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+.section-pad {
+  padding-block: 5rem;
+}
+
+@media (min-width: 768px) {
+  .section-pad {
+    padding-block: 6.5rem;
+  }
+}
+
+/* Subtle animated reveal (opt-in via class) */
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 650ms ease, transform 650ms ease;
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Parallax helper for hero media (opt-in) */
+.parallax-media {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--ring);
+  border-radius: 10px;
+}

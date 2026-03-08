@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A K Engineering — Smart Project Enquiry & Blueprint Upload Portal</title>
+
+    <!-- Tailwind CDN (good for standalone HTML prototypes). For production Next.js, use Tailwind via build pipeline. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              engineering: {
+                blue: "#0B4AA2", // primary
+                blueDark: "#083A80",
+              },
+              construction: {
+                orange: "#F47A1F", // CTA
+                orangeDark: "#D96512",
+              },
+              steel: {
+                grey: "#475569", // text/borders (slate-ish)
+                border: "#CBD5E1",
+                bg: "#F8FAFC",
+              },
+            },
+            boxShadow: {
+              soft: "0 10px 30px rgba(2, 6, 23, 0.08)",
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      /* Minimal polish beyond Tailwind: better focus ring/scrollbar behavior */
+      :root {
+        color-scheme: light;
+      }
+      .ring-enterprise:focus {
+        outline: none;
+        box-shadow:
+          0 0 0 3px rgba(11, 74, 162, 0.18),
+          0 1px 2px rgba(2, 6, 23, 0.08);
+        border-color: rgba(11, 74, 162, 0.6);
+      }
+      .no-file-input::-webkit-file-upload-button {
+        visibility: hidden;
+      }
+      .no-file-input::before {
+        content: "Choose files";
+        display: inline-block;
+        background: #0b4aa2;
+        color: white;
+        border: 1px solid rgba(2, 6, 23, 0.08);
+        border-radius: 10px;
+        padding: 10px 14px;
+        outline: none;
+        white-space: nowrap;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      .no-file-input:hover::before {
+        background: #083a80;
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen bg-steel-bg text-slate-900">
+    <main class="mx-auto w-full max-w-4xl px-4 py-10 sm:py-14">
+      <!-- Header -->
+      <header class="mb-8">
+        <div class="inline-flex items-center gap-2 rounded-full border border-steel-border bg-white px-3 py-1 text-xs font-semibold text-steel-grey">
+          <span class="h-2 w-2 rounded-full bg-engineering-blue"></span>
+          Smart Project Enquiry Portal
+        </div>
+
+        <h1 class="mt-4 text-balance text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+          Submit Your Technical Requirement
+        </h1>
+
+        <p class="mt-2 max-w-2xl text-pretty text-sm leading-6 text-slate-600 sm:text-base">
+          Built for procurement teams and site engineers. Share project parameters and upload drawings/BOQs securely for an initial feasibility review by A K Engineering.
+        </p>
+      </header>
+
+      <!-- Form Card -->
+      <section class="rounded-2xl border border-steel-border bg-white shadow-soft">
+        <form id="enquiryForm" class="p-5 sm:p-8" novalidate>
+          <!-- SECTION 1: Client Credentials -->
+          <section class="rounded-xl border border-steel-border bg-white">
+            <div class="border-b border-steel-border px-4 py-3 sm:px-5">
+              <h2 class="text-sm font-semibold tracking-wide text-slate-900">Client Credentials</h2>
+              <p class="mt-0.5 text-xs text-slate-600">Helps us route your enquiry to the right engineering lead.</p>
+            </div>
+
+            <div class="grid gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-5">
+              <div class="sm:col-span-1">
+<label for="fullName" class="block text-xs font-semibold text-slate-700">Full Name <span class="text-red-600">*</span></label>
+                <input
+                  id="fullName"
+                  name="fullName"
+                  type="text"
+                  autocomplete="name"
+                  required
+                  placeholder="e.g., Rahul Verma"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
+                />
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="fullName">Please enter your full name.</p>
+              </div>
+
+              <div class="sm:col-span-1">
+<label for="designation" class="block text-xs font-semibold text-slate-700">Designation <span class="text-red-600">*</span></label>
+                <input
+                  id="designation"
+                  name="designation"
+                  type="text"
+                  required
+                  placeholder="e.g., Procurement Manager / Site Engineer"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
+                />
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="designation">Please enter your designation.</p>
+              </div>
+
+              <div class="sm:col-span-2">
+<label for="company" class="block text-xs font-semibold text-slate-700">Company / Organization Name <span class="text-red-600">*</span></label>
+                <input
+                  id="company"
+                  name="company"
+                  type="text"
+                  autocomplete="organization"
+                  required
+                  placeholder="e.g., ABC Industrial Projects Pvt. Ltd."
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
+                />
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="company">Please enter your company/organization.</p>
+              </div>
+
+              <div class="sm:col-span-1">
+<label for="email" class="block text-xs font-semibold text-slate-700">Official Email Address <span class="text-red-600">*</span></label>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autocomplete="email"
+                  inputmode="email"
+                  required
+                  placeholder="name@company.com"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
+                />
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="email">Please enter a valid official email.</p>
+              </div>
+
+              <div class="sm:col-span-1">
+<label for="phone" class="block text-xs font-semibold text-slate-700">Mobile / WhatsApp Number <span class="text-red-600">*</span></label>
+                <input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  autocomplete="tel"
+                  inputmode="tel"
+                  required
+                  placeholder="e.g., +91 98xxxxxx12"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
+                />
+                <div class="mt-2 flex items-center gap-2">
+<input
+                    id="whatsappOptIn"
+                    name="whatsappOptIn"
+                    type="checkbox"
+                    required
+                    class="h-4 w-4 rounded border-steel-border text-engineering-blue focus:ring-engineering-blue"
+                  />
+<label for="whatsappOptIn" class="text-xs text-slate-600">Send updates via WhatsApp <span class="text-red-600">*</span></label>
+                </div>
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="phone">Please enter a valid mobile number.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Spacer -->
+          <div class="my-6 h-px bg-steel-border"></div>
+
+          <!-- SECTION 2: Technical Parameters -->
+          <section class="rounded-xl border border-steel-border bg-white">
+            <div class="border-b border-steel-border px-4 py-3 sm:px-5">
+              <h2 class="text-sm font-semibold tracking-wide text-slate-900">Technical Parameters</h2>
+              <p class="mt-0.5 text-xs text-slate-600">Share scope details so our engineering team can respond faster.</p>
+            </div>
+
+            <div class="grid gap-4 p-4 sm:grid-cols-2 sm:gap-5 sm:p-5">
+              <div class="sm:col-span-2">
+<label for="category" class="block text-xs font-semibold text-slate-700">Project Category <span class="text-red-600">*</span></label>
+                <select
+                  id="category"
+                  name="category"
+                  required
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900"
+                >
+                  <option value="" selected disabled>Select a category</option>
+                  <option value="peb">Pre-Engineered Building (PEB)</option>
+                  <option value="heavy_fab">Heavy Structural Steel Fabrication</option>
+                  <option value="erection">Structural Steel Erection</option>
+                  <option value="shed_roof">Industrial Shed / Roofing</option>
+                  <option value="mechanical_maintenance">Mechanical Maintenance</option>
+                </select>
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="category">Please select a project category.</p>
+              </div>
+
+              <!-- Conditional: Area -->
+              <div id="areaWrap" class="hidden sm:col-span-1">
+<label for="estimatedArea" class="block text-xs font-semibold text-slate-700">Estimated Area (Sq Ft) <span class="text-red-600">*</span></label>
+                <select
+                  id="estimatedArea"
+                  name="estimatedArea"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900"
+                >
+                  <option value="" selected disabled>Select area band</option>
+                  <option value="under_5000">Under 5,000</option>
+                  <option value="5000_20000">5,000 - 20,000</option>
+                  <option value="20000_plus">20,000+</option>
+                </select>
+                <p class="mt-1 text-[11px] text-slate-500">Shown for PEB & Industrial Shed/Roofing.</p>
+              </div>
+
+              <!-- Conditional: Tonnage -->
+              <div id="tonnageWrap" class="hidden sm:col-span-1">
+<label for="estimatedTonnage" class="block text-xs font-semibold text-slate-700">Estimated Tonnage <span class="text-red-600">*</span></label>
+                <select
+                  id="estimatedTonnage"
+                  name="estimatedTonnage"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900"
+                >
+                  <option value="" selected disabled>Select tonnage band</option>
+                  <option value="under_50">Under 50 MT</option>
+                  <option value="50_200">50 - 200 MT</option>
+                  <option value="200_plus">200+ MT</option>
+                </select>
+                <p class="mt-1 text-[11px] text-slate-500">Shown for Heavy Fabrication & Erection.</p>
+              </div>
+
+              <div class="sm:col-span-1">
+<label for="location" class="block text-xs font-semibold text-slate-700">Project Site Location <span class="text-red-600">*</span></label>
+                <input
+                  id="location"
+                  name="location"
+                  type="text"
+                  required
+                  placeholder="City / State"
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400"
+                />
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="location">Please enter the site location.</p>
+              </div>
+
+              <div class="sm:col-span-1">
+<label for="timeline" class="block text-xs font-semibold text-slate-700">Expected Project Timeline <span class="text-red-600">*</span></label>
+                <select
+                  id="timeline"
+                  name="timeline"
+                  required
+                  class="ring-enterprise mt-1.5 w-full rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm text-slate-900"
+                >
+                  <option value="" selected disabled>Select timeline</option>
+                  <option value="immediate">Immediate</option>
+                  <option value="1_3_months">1-3 Months</option>
+                  <option value="3_6_months">3-6 Months</option>
+                  <option value="planning">Planning Phase</option>
+                </select>
+                <p class="mt-1 hidden text-xs text-red-600" data-error-for="timeline">Please select a timeline.</p>
+              </div>
+            </div>
+          </section>
+
+          <!-- Spacer -->
+          <div class="my-6 h-px bg-steel-border"></div>
+
+          <!-- SECTION 3: Blueprint Upload Zone -->
+          <section class="rounded-xl border border-steel-border bg-white">
+            <div class="border-b border-steel-border px-4 py-3 sm:px-5">
+              <h2 class="text-sm font-semibold tracking-wide text-slate-900">Blueprint Upload</h2>
+              <p class="mt-0.5 text-xs text-slate-600">Attach drawings/BOQs so our team can estimate accurately.</p>
+            </div>
+
+            <div class="p-4 sm:p-5">
+<div
+                id="dropzone"
+                role="button"
+                tabindex="0"
+                aria-label="Upload files"
+                class="group relative flex min-h-[170px] cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-steel-border bg-steel-bg px-5 py-8 text-center transition"
+              >
+                <!-- Icon -->
+                <div class="flex h-12 w-12 items-center justify-center rounded-2xl border border-steel-border bg-white shadow-sm transition group-hover:border-engineering-blue">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" class="text-engineering-blue" aria-hidden="true">
+                    <path
+                      d="M7 16a4 4 0 0 1 0-8 5 5 0 0 1 9.5-1.5A4.5 4.5 0 0 1 17 16"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path d="M12 12v8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+                    <path d="M8.75 14.75 12 11.5l3.25 3.25" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                  </svg>
+                </div>
+
+                <div>
+                  <p class="text-sm font-semibold text-slate-900">Drag & drop files here, or click to browse</p>
+                  <p class="mt-1 text-xs text-slate-600">
+                    Upload Structural Drawings, BOQ, or Single-Line Diagrams (Accepts PDF, DWG, DOCX. Max 50MB).
+                  </p>
+                </div>
+
+<input
+                  id="files"
+                  name="files"
+                  type="file"
+                  multiple
+                  required
+                  class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                  accept=".pdf,.doc,.docx,.jpeg,.jpg,.png,.dwg"
+                />
+                <p id="filesTypeError" class="mt-2 hidden text-sm mt-1 text-red-500" data-error-for="filesType">
+                  Invalid file type. Please upload PDF, DWG, DOC, or image files.
+                </p>
+              </div>
+
+              <div class="mt-4 rounded-xl border border-steel-border bg-white px-4 py-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-xs font-semibold text-slate-700">Selected files</p>
+                    <p class="mt-0.5 text-xs text-slate-500">We recommend compressing DWG/PDF if possible to stay under 50MB.</p>
+                  </div>
+                  <button
+                    id="clearFilesBtn"
+                    type="button"
+                    class="rounded-lg border border-steel-border bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-engineering-blue hover:text-engineering-blue"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <ul id="fileList" class="mt-3 space-y-2 text-xs text-slate-700">
+                  <li class="text-slate-500" id="fileListEmpty">No files selected.</li>
+                </ul>
+                <p id="fileError" class="mt-2 hidden text-xs text-red-600">One or more files exceed 50MB. Please remove large files and try again.</p>
+              </div>
+
+              <div class="mt-5">
+<label for="description" class="block text-xs font-semibold text-slate-700">Project Description <span class="text-red-600">*</span></label>
+<textarea
+                  id="description"
+                  name="description"
+                  rows="5"
+                  required
+                  placeholder="Include load capacities, crane requirements, corrosion environment, access constraints, shutdown windows, or any site challenges."
+                  class="ring-enterprise mt-1.5 w-full resize-y rounded-xl border border-steel-border bg-white px-3.5 py-2.5 text-sm leading-6 text-slate-900 placeholder:text-slate-400"
+                ></textarea>
+              </div>
+            </div>
+          </section>
+
+          <!-- Spacer -->
+          <div class="my-6 h-px bg-steel-border"></div>
+
+          <!-- SECTION 4: Submission Area -->
+          <section class="rounded-xl border border-steel-border bg-white">
+            <div class="px-4 py-4 sm:px-5 sm:py-5">
+              <p class="text-xs text-slate-600">
+                <span class="font-semibold text-slate-800">🔒 Confidentiality:</span>
+                Your technical drawings and intellectual property are kept strictly confidential by A K Engineering.
+              </p>
+
+              <button
+                id="submitBtn"
+                type="submit"
+                class="mt-4 w-full rounded-2xl bg-construction-orange px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-construction-orangeDark focus:outline-none focus:ring-4 focus:ring-[rgba(244,122,31,0.25)]"
+              >
+                Submit Project Requirement for Review
+              </button>
+
+              <p id="submitStatus" class="mt-3 hidden text-xs"></p>
+            </div>
+          </section>
+
+          <!-- Footer microcopy -->
+          <p class="mt-5 text-xs text-slate-500">
+            By submitting, you confirm you are authorized to share these documents for quotation/feasibility evaluation.
+          </p>
+        </form>
+      </section>
+
+      <footer class="mt-8 text-center text-xs text-slate-500">
+        © <span id="year"></span> A K Engineering — Industrial EPC & Structural Steel Solutions
+      </footer>
+    </main>
+
+    <script>
+      (function () {
+        const MAX_BYTES = 50 * 1024 * 1024;
+
+const PHONE_REGEX = /^[6-9]\d{9}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const ALLOWED_EXTENSIONS = new Set(["pdf", "doc", "docx", "jpeg", "jpg", "png", "dwg"]);
+
+        const yearEl = document.getElementById("year");
+        yearEl.textContent = String(new Date().getFullYear());
+
+        // Elements
+        const form = document.getElementById("enquiryForm");
+        const category = document.getElementById("category");
+
+        const areaWrap = document.getElementById("areaWrap");
+        const tonnageWrap = document.getElementById("tonnageWrap");
+        const estimatedArea = document.getElementById("estimatedArea");
+        const estimatedTonnage = document.getElementById("estimatedTonnage");
+
+        const dropzone = document.getElementById("dropzone");
+        const fileInput = document.getElementById("files");
+        const fileList = document.getElementById("fileList");
+        const fileListEmpty = document.getElementById("fileListEmpty");
+        const fileError = document.getElementById("fileError");
+        const clearFilesBtn = document.getElementById("clearFilesBtn");
+
+        const submitStatus = document.getElementById("submitStatus");
+        const submitBtn = document.getElementById("submitBtn");
+
+        function setHidden(el, hidden) {
+          el.classList.toggle("hidden", hidden);
+        }
+
+        function resetConditionalFields() {
+          // Clear values + required flags
+          estimatedArea.value = "";
+          estimatedTonnage.value = "";
+          estimatedArea.required = false;
+          estimatedTonnage.required = false;
+
+          setHidden(areaWrap, true);
+          setHidden(tonnageWrap, true);
+        }
+
+        function applyConditionalLogic() {
+          const v = category.value;
+
+          // Values:
+          // peb, shed_roof => area
+          // heavy_fab, erection => tonnage
+          // mechanical_maintenance => none
+          resetConditionalFields();
+
+          const needsArea = v === "peb" || v === "shed_roof";
+          const needsTonnage = v === "heavy_fab" || v === "erection";
+
+          if (needsArea) {
+            setHidden(areaWrap, false);
+            estimatedArea.required = true;
+          } else if (needsTonnage) {
+            setHidden(tonnageWrap, false);
+            estimatedTonnage.required = true;
+          }
+        }
+
+        category.addEventListener("change", applyConditionalLogic);
+
+        // Drag-drop UX
+        function setDropzoneActive(active) {
+          dropzone.classList.toggle("border-engineering-blue", active);
+          dropzone.classList.toggle("bg-white", active);
+          dropzone.classList.toggle("border-steel-border", !active);
+          dropzone.classList.toggle("bg-steel-bg", !active);
+        }
+
+        function formatBytes(bytes) {
+          const units = ["B", "KB", "MB", "GB"];
+          let idx = 0;
+          let num = bytes;
+          while (num >= 1024 && idx < units.length - 1) {
+            num /= 1024;
+            idx++;
+          }
+          return `${num.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
+        }
+
+        function escapeHtml(str) {
+          // Avoid formatter/escape corruption by not embedding HTML entities at all.
+          // We set text via `textContent` when rendering file rows (see renderFiles()).
+          return String(str ?? "");
+        }
+
+        function renderFiles() {
+          const files = Array.from(fileInput.files || []);
+          fileList.innerHTML = "";
+
+          if (!files.length) {
+            fileList.appendChild(fileListEmpty);
+            fileListEmpty.classList.remove("hidden");
+            setHidden(fileError, true);
+            return;
+          }
+
+          fileListEmpty.classList.add("hidden");
+
+          let tooLarge = false;
+
+          files.forEach((f, idx) => {
+            if (f.size > MAX_BYTES) tooLarge = true;
+
+            const li = document.createElement("li");
+            li.className = "flex items-center justify-between gap-3 rounded-lg border border-steel-border bg-steel-bg px-3 py-2";
+
+            const left = document.createElement("div");
+            left.className = "min-w-0";
+            const nameP = document.createElement("p");
+            nameP.className = "truncate text-xs font-semibold text-slate-800";
+            nameP.textContent = f.name;
+            const metaP = document.createElement("p");
+            metaP.className = "text-[11px] text-slate-500";
+            metaP.textContent = `${f.type || "File"} • ${formatBytes(f.size)}`;
+            left.appendChild(nameP);
+            left.appendChild(metaP);
+
+            const removeBtn = document.createElement("button");
+            removeBtn.type = "button";
+            removeBtn.className =
+              "shrink-0 rounded-lg border border-steel-border bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:border-construction-orange hover:text-construction-orange";
+            removeBtn.setAttribute("data-remove-index", String(idx));
+            removeBtn.setAttribute("aria-label", `Remove file ${f.name}`);
+            removeBtn.textContent = "Remove";
+
+            li.appendChild(left);
+            li.appendChild(removeBtn);
+            fileList.appendChild(li);
+          });
+
+          setHidden(fileError, !tooLarge);
+
+          // Wire remove buttons: rebuild FileList via DataTransfer
+          fileList.querySelectorAll("button[data-remove-index]").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+              const removeIndex = Number(e.currentTarget.getAttribute("data-remove-index"));
+              const currentFiles = Array.from(fileInput.files || []);
+              const dt = new DataTransfer();
+              currentFiles.forEach((file, i) => {
+                if (i !== removeIndex) dt.items.add(file);
+              });
+              fileInput.files = dt.files;
+              renderFiles();
+            });
+          });
+        }
+
+        function getFileExtension(fileName) {
+          const name = String(fileName || "");
+          const idx = name.lastIndexOf(".");
+          if (idx === -1) return "";
+          return name.slice(idx + 1).toLowerCase();
+        }
+
+function validateFiles() {
+          const files = Array.from(fileInput.files || []);
+
+          const hasFiles = files.length > 0;
+          const sizeOk = files.every((f) => f.size <= MAX_BYTES);
+          const typeOk = files.every((f) => ALLOWED_EXTENSIONS.has(getFileExtension(f.name)));
+
+          return { hasFiles, sizeOk, typeOk };
+        }
+
+        // input changes
+        fileInput.addEventListener("change", () => {
+          renderFiles();
+        });
+
+        // click/keyboard accessibility: dropzone focus -> press Enter/Space triggers file dialog
+        dropzone.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            fileInput.click();
+          }
+        });
+
+        // drag events
+        ["dragenter", "dragover"].forEach((evtName) => {
+          dropzone.addEventListener(evtName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDropzoneActive(true);
+          });
+        });
+
+        ["dragleave", "drop"].forEach((evtName) => {
+          dropzone.addEventListener(evtName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setDropzoneActive(false);
+          });
+        });
+
+        dropzone.addEventListener("drop", (e) => {
+          const dropped = Array.from(e.dataTransfer.files || []);
+          if (!dropped.length) return;
+
+          // Merge with existing selected files
+          const current = Array.from(fileInput.files || []);
+          const dt = new DataTransfer();
+          current.forEach((f) => dt.items.add(f));
+          dropped.forEach((f) => dt.items.add(f));
+          fileInput.files = dt.files;
+
+          renderFiles();
+        });
+
+        clearFilesBtn.addEventListener("click", () => {
+          fileInput.value = "";
+          renderFiles();
+        });
+
+        // Basic enterprise validation (no backend submission in this standalone file)
+function showFieldError(name, show, message) {
+          const el = form.querySelector(`[data-error-for="${name}"]`);
+          if (!el) return;
+          if (typeof message === "string") el.textContent = message;
+          el.classList.toggle("hidden", !show);
+        }
+
+        function markInvalid(inputEl, invalid) {
+          if (!inputEl) return;
+          inputEl.classList.toggle("border-red-500", invalid);
+          inputEl.classList.toggle("border-steel-border", !invalid);
+        }
+
+        function clearAllFieldStyles() {
+          form.querySelectorAll("input, select, textarea").forEach((el) => {
+            el.classList.remove("border-red-500");
+            if (el.classList.contains("ring-enterprise")) {
+              el.classList.add("border-steel-border");
+            }
+          });
+        }
+
+function validateForm() {
+          let ok = true;
+
+          // Clear old state
+          clearAllFieldStyles();
+          submitStatus.classList.add("hidden");
+          submitStatus.className = "mt-3 hidden text-xs";
+
+          const globalMsg = "Please fill in all mandatory details properly before submitting.";
+          let missingAny = false;
+
+          const requiredIds = ["fullName", "designation", "company", "email", "phone", "category", "location", "timeline", "description", "files", "whatsappOptIn"];
+
+          // Required presence checks (blank/unselected)
+          requiredIds.forEach((id) => {
+            const input = document.getElementById(id);
+
+            let present = true;
+            if (input?.type === "checkbox") {
+              present = input.checked;
+            } else if (input?.type === "file") {
+              present = (input.files || []).length > 0;
+            } else {
+              present = String(input?.value || "").trim() !== "";
+            }
+
+            if (!present) {
+              missingAny = true;
+              ok = false;
+              // don't show per-field text for all; just highlight
+              markInvalid(input, true);
+              showFieldError(id, false);
+            } else {
+              markInvalid(input, false);
+            }
+          });
+
+          // Conditional required presence checks
+          if (!areaWrap.classList.contains("hidden")) {
+            const present = String(estimatedArea.value || "").trim() !== "";
+            if (!present) {
+              missingAny = true;
+              ok = false;
+              markInvalid(estimatedArea, true);
+            } else {
+              markInvalid(estimatedArea, false);
+            }
+          }
+          if (!tonnageWrap.classList.contains("hidden")) {
+            const present = String(estimatedTonnage.value || "").trim() !== "";
+            if (!present) {
+              missingAny = true;
+              ok = false;
+              markInvalid(estimatedTonnage, true);
+            } else {
+              markInvalid(estimatedTonnage, false);
+            }
+          }
+
+          // Format checks
+          const email = document.getElementById("email");
+          const emailVal = String(email.value || "").trim();
+          if (emailVal && !EMAIL_REGEX.test(emailVal)) {
+            ok = false;
+            markInvalid(email, true);
+            showFieldError("email", true, "Please enter a valid email address.");
+          } else {
+            showFieldError("email", false);
+          }
+
+          const phone = document.getElementById("phone");
+          const phoneVal = String(phone.value || "").trim();
+          if (phoneVal && !PHONE_REGEX.test(phoneVal)) {
+            ok = false;
+            markInvalid(phone, true);
+            showFieldError("phone", true, "Please enter a valid 10-digit mobile number.");
+          } else {
+            showFieldError("phone", false);
+          }
+
+          // File checks: required + types + size
+          const { hasFiles, sizeOk, typeOk } = validateFiles();
+
+          const filesTypeError = document.getElementById("filesTypeError");
+          const filesInput = document.getElementById("files");
+
+          if (!hasFiles) {
+            missingAny = true;
+            ok = false;
+            markInvalid(filesInput, true);
+          } else {
+            markInvalid(filesInput, false);
+          }
+
+          setHidden(fileError, sizeOk);
+          if (filesTypeError) setHidden(filesTypeError, typeOk);
+
+          if (!sizeOk || !typeOk) ok = false;
+
+          // Global missing message
+          if (!ok && missingAny) {
+            submitStatus.textContent = globalMsg;
+            submitStatus.className = "mt-3 text-sm font-semibold text-red-700";
+            submitStatus.classList.remove("hidden");
+          }
+
+          return ok;
+        }
+
+form.addEventListener("submit", async (e) => {
+          // Always intercept submit (enterprise UX)
+          e.preventDefault();
+
+          const ok = validateForm();
+          if (!ok) {
+            submitStatus.scrollIntoView({ behavior: "smooth", block: "center" });
+            return;
+          }
+
+          // Success state (demo-only; replace with real API call)
+          submitBtn.disabled = true;
+          submitBtn.classList.add("opacity-80", "cursor-not-allowed");
+          submitBtn.textContent = "Submitting…";
+
+          await new Promise((r) => setTimeout(r, 400));
+
+          submitBtn.disabled = false;
+          submitBtn.classList.remove("opacity-80", "cursor-not-allowed");
+          submitBtn.textContent = "Submit Project Requirement for Review";
+
+          // Hide errors, show success, reset
+          submitStatus.textContent = "Thanks. Your project enquiry has been captured successfully.";
+          submitStatus.className = "mt-3 text-sm font-semibold text-green-700";
+          submitStatus.classList.remove("hidden");
+
+          form.reset();
+          resetConditionalFields();
+          renderFiles();
+        });
+
+        // initialize
+        resetConditionalFields();
+        renderFiles();
+      })();
+    </script>
+  </body>
+</html>

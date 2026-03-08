@@ -1,0 +1,136 @@
+###############################################################################
+# A K ENGINEERING — Enterprise Full-Stack .gitignore
+# Stack: Node.js + Python backend, Next.js/HTML/Tailwind frontend
+# Goal: Never commit secrets, builds, dependencies, or local machine noise.
+###############################################################################
+
+############################
+# Secrets / Environment
+############################
+.env
+.env.*
+!.env.example
+*.env
+
+# Common secret files
+secrets.*
+*.secret
+*.key
+*.pem
+*.pfx
+*.p12
+*.crt
+*.csr
+
+############################
+# Node / JS / TS
+############################
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm/
+.yarn/
+.pnpm-store/
+.cache/
+
+# Next.js
+.next/
+out/
+.next/cache/
+
+# General build output
+dist/
+build/
+coverage/
+.nyc_output/
+
+############################
+# Python
+############################
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.venv/
+venv/
+ENV/
+env/
+*.log
+
+############################
+# OS / System files
+############################
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+
+############################
+# IDE / Editor
+############################
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+############################
+# Git tooling
+############################
+*.orig
+
+############################
+# Docker / Local orchestration
+############################
+docker-compose.override.yml
+
+############################
+# Misc local artifacts (safe defaults)
+############################
+*.tgz
+*.zip
+*.7z
+
+# Local runtime data
+logs/
+tmp/
+temp/
+
+############################
+# Project-specific: known local test artifacts in this repo
+############################
+admin_cookies.txt
+check_session_headers.txt
+cors_ok_health.txt
+cors_ok_options.txt
+headers*.txt
+health_headers*.txt
+lead_post_body*.json
+lead_post_headers*.txt
+live_*_headers.txt
+reset_check.txt
+test_get_headers.txt
