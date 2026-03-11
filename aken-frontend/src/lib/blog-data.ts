@@ -27,18 +27,19 @@ export const blogPosts: BlogPost[] = [
       "A K ENGINEERING",
     ],
     content: `
-The Ultimate Guide to PEB vs. Conventional Steel Fabrication in Eastern India
+# The Ultimate Guide to PEB vs. Conventional Steel Fabrication in Eastern India
 
 When you’re expanding capacity—adding a warehouse, a covered bay, a pipe rack, or a new process building—the “steel package” can make or break your commissioning date. In Eastern India, that risk is amplified by monsoon interruptions, congested brownfield sites, and the simple reality that a day of lost production often costs more than a few tonnes of steel.
 
 The key decision is usually framed as:
 
-Should we go with a Pre-Engineered Building (PEB) system, or conventional steel fabrication?
+**Should we go with a Pre-Engineered Building (PEB) system, or conventional steel fabrication?**
 
 This guide explains the trade-offs in a practical, procurement-grade way—focused on what CPOs and Plant Managers care about most: **scale, safety, quality assurance, and reducing operational downtime**.
 
+---
 
-Why this decision looks different in Eastern India
+## Why this decision looks different in Eastern India
 
 Projects across Odisha, Chhattisgarh, Jharkhand, and West Bengal typically share a few constraints that directly affect risk and cost:
 
@@ -50,10 +51,11 @@ Projects across Odisha, Chhattisgarh, Jharkhand, and West Bengal typically share
 
 In this environment, “PEB vs conventional” should be treated as a risk-managed procurement choice, not simply a design preference.
 
+---
 
-PEB vs conventional steel fabrication: what each one really means
+## PEB vs conventional steel fabrication: what each one really means
 
-What is a PEB (Pre-Engineered Building)?
+### What is a PEB (Pre-Engineered Building)?
 
 A PEB is a steel building delivered as an engineered system—primary frames, secondary members, bracing, and connection logic are designed as a package. In practical terms, that usually means:
 
@@ -67,7 +69,7 @@ PEB is a strong fit for:
 - Industrial sheds and covered bays  
 - Workshops, maintenance buildings, and storage structures  
 
-What is conventional steel fabrication?
+### What is conventional steel fabrication?
 
 Conventional fabrication refers to custom structural steel built from rolled sections or built-up members for a specific project, typically with higher variability in member types and connections. It’s commonly used for:
 
@@ -82,14 +84,14 @@ Conventional steel can be extremely robust and accurate—but outcomes depend he
 - Fit-up discipline and welding control  
 - Inspection planning and dimensional verification  
 
+---
 
+## A procurement-grade comparison: where each approach usually wins
 
- A procurement-grade comparison: where each approach usually wins
-
- Key differences at a glance
+### Key differences at a glance
 
 | Decision factor | PEB (Pre-Engineered Building) | Conventional steel fabrication |
-
+|---|---|---|
 | Speed to site | High—systemized detailing, predictable fabrication | Moderate—depends on detailing cycle and interface changes |
 | Design flexibility | Moderate—best for regular spans/layouts | High—better for irregular geometry and heavy loads |
 | Erection complexity | Lower—repeatable connections and sequences | Higher—more member variation and fit-up dependency |
@@ -144,10 +146,11 @@ Conventional steel can be executed safely and professionally—but risk rises wh
 
 A practical procurement question that cuts through vendor claims is:
 
-- What percentage of work is planned in the shop vs at site—and what controls are in place for both?**
+- What percentage of work is planned in the shop vs at site—and what controls are in place for both?
 
+---
 
- Downtime and continuity: the biggest cost driver in brownfield projects
+## Downtime and continuity: the biggest cost driver in brownfield projects
 
 For Plant Managers, the most expensive “line item” is often invisible in the BOQ: **lost production** due to access restrictions, rework, or extended shutdown windows.
 
@@ -266,7 +269,7 @@ Conclusion: make the choice that protects commissioning—and choose a partner b
 
 In Eastern India, the right question is not “PEB or conventional?” in isolation. The right question is:
 
-Which approach reduces commissioning risk for this layout, this load case, and this shutdown window?**
+Which approach reduces commissioning risk for this layout, this load case, and this shutdown window?
 
 PEB systems are often the fastest route to predictable execution for warehouses and sheds. Conventional fabrication remains essential for heavy, integration-intensive structures—provided the project is supported by mature detailing, fit-up control, and inspection readiness.
 
