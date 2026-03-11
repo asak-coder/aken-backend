@@ -1,31 +1,19 @@
-export interface BlogPost {
-  slug: string;
-  title: string;
-  description: string;
-  content: string;
-  date: string;
-  updatedAt?: string;
-  keywords: string[];
-}
+---
+title: "The Ultimate Guide to PEB vs. Conventional Steel Fabrication in Eastern India"
+slug: "the-ultimate-guide-peb-vs-conventional-steel-fabrication-eastern-india"
+metaTitle: "PEB vs Conventional Steel Fabrication in Eastern India | Ultimate Procurement Guide"
+metaDescription: "A B2B procurement guide for Eastern India comparing PEB vs conventional steel fabrication—cost, schedule, safety, quality, and downtime reduction. Includes a decision checklist for plant projects."
+keywords:
+  - PEB fabrication Eastern India
+  - conventional steel fabrication
+  - pre engineered building vs conventional steel
+  - industrial steel structures Odisha
+  - fabrication partner Hirakud
+  - reduce downtime industrial construction
+publishedAt: "2026-03-11"
+readingTimeMinutes: 9
+---
 
-export const blogPosts: BlogPost[] = [
-  {
-    slug: "the-ultimate-guide-peb-vs-conventional-steel-fabrication-eastern-india",
-    title: "The Ultimate Guide to PEB vs. Conventional Steel Fabrication in Eastern India",
-    description:
-      "A procurement-grade comparison of PEB vs conventional steel fabrication—schedule, safety, QA/QC, and downtime reduction for industrial projects in Eastern India.",
-    date: "2026-03-11",
-    updatedAt: "2026-03-11",
-    keywords: [
-      "PEB fabrication Eastern India",
-      "conventional steel fabrication",
-      "pre engineered building vs conventional steel",
-      "industrial steel structures Odisha",
-      "fabrication partner Hirakud",
-      "reduce downtime industrial construction",
-      "A K ENGINEERING",
-    ],
-    content: `
 # The Ultimate Guide to PEB vs. Conventional Steel Fabrication in Eastern India
 
 Procurement leaders and plant teams in Eastern India are under increasing pressure to deliver faster capacity additions, safer construction, and lower total installed cost—without unplanned shutdowns or post-handover rework. When a new warehouse, shed, pipe rack, or process building is planned, the first strategic decision is often overlooked:
@@ -303,70 +291,3 @@ For CPOs and Plant Managers in Eastern India, **PEB vs conventional steel fabric
 The most resilient procurement outcomes come from selecting the approach that aligns with your project’s geometry, load case, and shutdown constraints—and then partnering with a fabricator that can execute with disciplined shop controls and predictable delivery.
 
 **A K ENGINEERING**, based in **Hirakud**, supports industrial projects across Eastern India with fabrication capabilities aligned to both PEB-style packages and conventional structural steel requirements. For procurement teams, that means a single partner who can help standardize documentation, plan fabrication to schedule, and reduce rework risk—so your plant can commission faster with fewer interruptions.
-`,
-  },
-  {
-    slug: "benefits-of-pre-engineered-buildings",
-    title: "Benefits of Pre-Engineered Buildings for Industrial Projects",
-    description:
-      "Discover why Pre-Engineered Buildings (PEB) are cost-effective, faster to construct and ideal for industrial infrastructure projects.",
-    date: "2026-02-22",
-    updatedAt: "2026-02-22",
-    keywords: [
-      "pre engineered buildings",
-      "PEB benefits",
-      "industrial construction",
-      "industrial warehouse structure",
-      "A K ENGINEERING",
-    ],
-    content: `
-Pre-Engineered Buildings (PEB) have transformed industrial construction across India.
-
-1. Faster Construction
-PEB structures are manufactured in factories and assembled on-site, reducing construction time significantly.
-
-2. Cost Efficiency
-Optimized steel usage reduces material wastage and overall project cost.
-
-3. Design Flexibility
-PEB allows future expansion and customization.
-
-4. Lower Maintenance
-High-quality steel structures offer long-term durability.
-
-Industries like power plants, cement factories, warehouses and manufacturing units prefer PEB for large-scale infrastructure.
-`,
-  },
-  {
-    slug: "peb-vs-rcc-industrial-construction",
-    title: "PEB vs RCC: Which is Better for Industrial Construction?",
-    description:
-      "Compare Pre-Engineered Buildings and RCC structures for industrial shed and factory construction projects.",
-    date: "2026-02-20",
-    updatedAt: "2026-02-20",
-    keywords: [
-      "PEB vs RCC",
-      "industrial shed construction",
-      "steel structure vs RCC",
-      "factory building comparison",
-      "A K ENGINEERING",
-    ],
-    content: `
-When choosing between PEB and RCC for industrial construction, consider:
-
-Speed:
-PEB construction is significantly faster than RCC.
-
-Cost:
-PEB generally requires lower foundation cost.
-
-Expansion:
-Steel buildings allow easy modification.
-
-Weight:
-PEB structures are lighter, reducing load on soil.
-
-For industrial sheds and warehouses, PEB is often the preferred choice.
-`,
-  },
-];
