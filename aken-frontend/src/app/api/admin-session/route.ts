@@ -6,23 +6,34 @@ function getBackendUrl() {
 }
 
 export async function GET(req: NextRequest) {
-  const backendRes = await fetch(`${getBackendUrl()}/api/auth/session`, {
-    method: "GET",
-    headers: {
-      // Forward browser cookies to backend so it can validate session.
-      cookie: req.headers.get("cookie") || "",
-    },
-  });
+  try {
+    const backendRes = await fetch(`${getBackendUrl()}/api/auth/session`, {
+      method: "GET",
+      headers: {
+        // Forward browser cookies to backend so it can validate session.
+        cookie: req.headers.get("cookie") || "",
+      },
+      cache: "no-store",
+    });
 
-  if (!backendRes.ok) {
-    const response = NextResponse.json({ authenticated: false }, { status: backendRes.status });
+    if (!backendRes.ok) {
+      const response = NextResponse.json(
+        { authenticated: false },
+        // Stable contract: always 200 with authenticated=false so UI can rely on it.
+        { status: 200 },
+      );
+      response.headers.set("Cache-Control", "no-store");
+      return response;
+    }
+
+    const data = await backendRes.json().catch(() => ({}));
+
+    const response = NextResponse.json({ ...data?.data, authenticated: true }, { status: 200 });
+    response.headers.set("Cache-Control", "no-store");
+    return response;
+  } catch {
+    const response = NextResponse.json({ authenticated: false }, { status: 200 });
     response.headers.set("Cache-Control", "no-store");
     return response;
   }
-
-  const data = await backendRes.json().catch(() => ({}));
-
-  const response = NextResponse.json({ ...data?.data, authenticated: true });
-  response.headers.set("Cache-Control", "no-store");
-  return response;
 }

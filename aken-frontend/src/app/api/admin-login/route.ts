@@ -45,9 +45,9 @@ export async function POST(req: NextRequest) {
 
   if (!backendRes.ok) {
     await sleep(FAILED_LOGIN_DELAY_MS);
-    const text = await backendRes.text().catch(() => "");
+    // Do not leak backend error details to client.
     const response = NextResponse.json(
-      { error: "Invalid credentials.", details: text || undefined },
+      { error: "Invalid credentials." },
       { status: backendRes.status },
     );
     response.headers.set("Cache-Control", "no-store");

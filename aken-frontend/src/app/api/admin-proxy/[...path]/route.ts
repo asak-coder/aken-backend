@@ -13,7 +13,41 @@ function buildTargetUrl(pathParts: string[] | undefined, search: string) {
   return `${base}/api/${path}${search || ""}`;
 }
 
+function isBlockedPath(pathParts: string[] | undefined) {
+  const normalized = `/${(pathParts || []).join("/")}`.toLowerCase();
+
+  // Block direct access to auth + bootstrap via this proxy.
+  if (normalized === "/auth" || normalized.startsWith("/auth/")) return true;
+  if (normalized === "/bootstrap" || normalized.startsWith("/bootstrap/")) return true;
+
+  return false;
+}
+
+// Allowlist only the admin API surface that the frontend should reach via proxy.
+// Keep this list narrow; add items only when required by existing UI.
+function isAllowedPath(pathParts: string[] | undefined) {
+  const normalized = `/${(pathParts || []).join("/")}`.toLowerCase();
+
+  // System + admin CRUD routes (backend paths are /api/<route>)
+  const allowPrefixes = [
+    "/system",
+    "/leads",
+    "/projects",
+    "/quotations",
+    "/revenue",
+    "/export",
+  ];
+
+  return allowPrefixes.some((p) => normalized === p || normalized.startsWith(`${p}/`));
+}
+
 async function proxyRequest(req: NextRequest, pathParts: string[] | undefined) {
+  if (isBlockedPath(pathParts) || !isAllowedPath(pathParts)) {
+    const res = NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
+  }
+
   const targetUrl = buildTargetUrl(pathParts, new URL(req.url).search);
 
   // Forward minimal safe headers.
