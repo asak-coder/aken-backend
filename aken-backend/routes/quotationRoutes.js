@@ -1,10 +1,9 @@
-const fs = require("fs");
-const path = require("path");
 const express = require("express");
 const router = express.Router();
 
 const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
 const { csrfProtection } = require("../middleware/csrf");
+const { quotationCreateLimiter, quotationConvertLimiter } = require("../middleware/rateLimiters");
 
 const Quotation = require("../models/Quotation");
 const Project = require("../models/Project");
@@ -20,6 +19,7 @@ router.post(
   requireAdminSession,
   requireRole(["admin"]),
   csrfProtection,
+  quotationConvertLimiter,
   async (req, res) => {
   try {
     const quotation = await Quotation.findById(req.params.id).populate("leadId");
@@ -80,6 +80,7 @@ router.post(
   requireAdminSession,
   requireRole(["admin"]),
   csrfProtection,
+  quotationCreateLimiter,
   quotationValidation,
   async (req, res) => {
   try {
@@ -87,16 +88,13 @@ router.post(
 
     const shouldGeneratePdf =
       String(process.env.QUOTATION_GENERATE_PDF || "true").toLowerCase() === "true";
-    let pdfPath = null;
+    const clientEmail = req.body?.clientEmail;
 
-    if (shouldGeneratePdf) {
-      const quotesDir = path.resolve(process.cwd(), "quotes");
-      fs.mkdirSync(quotesDir, { recursive: true });
-      pdfPath = path.join(quotesDir, `${quotation._id}.pdf`);
-      await generatePDF(quotation, pdfPath);
+    let pdfBuffer = null;
+    if (shouldGeneratePdf && clientEmail && sendEmail.isEmailConfigured()) {
+      pdfBuffer = await generatePDF(quotation);
     }
 
-    const clientEmail = req.body?.clientEmail;
     if (clientEmail && sendEmail.isEmailConfigured()) {
       try {
         const mailOptions = {
@@ -105,11 +103,12 @@ router.post(
           text: "Please find attached quotation.",
         };
 
-        if (pdfPath) {
+        if (pdfBuffer) {
           mailOptions.attachments = [
             {
               filename: "quotation.pdf",
-              path: pdfPath,
+              content: pdfBuffer,
+              contentType: "application/pdf",
             },
           ];
         }

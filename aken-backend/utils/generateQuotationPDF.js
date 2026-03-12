@@ -1,5 +1,4 @@
 const PDFDocument = require("pdfkit");
-const fs = require("fs");
 
 function safeText(value, maxLen = 500) {
   const raw = typeof value === "string" ? value : String(value ?? "");
@@ -14,16 +13,14 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function generateQuotationPDF(quotation, filePath) {
+function generateQuotationPDF(quotation) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ autoFirstPage: true });
-    const stream = fs.createWriteStream(filePath);
 
-    stream.on("finish", resolve);
-    stream.on("error", reject);
+    const chunks = [];
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
-
-    doc.pipe(stream);
 
     doc.fontSize(20).text("A K ENGINEERING", { align: "center" });
     doc.moveDown();
@@ -38,7 +35,7 @@ function generateQuotationPDF(quotation, filePath) {
       const line = `${index + 1}. ${safeText(item?.description, 500)} - Qty: ${safeNumber(
         item?.quantity,
         0,
-      )} × ₹${safeNumber(item?.rate, 0)} = ₹${safeNumber(item?.amount, 0)}`;
+      )} × ₹${safeNumber(item?.rate, 0)} = ₹${safeNumber(item?.amount, 0)} `;
 
       doc.text(line);
     });
