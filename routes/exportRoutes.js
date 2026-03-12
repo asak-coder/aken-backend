@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
+const { exportLimiter } = require("../middleware/rateLimiters");
 
 const Lead = require("../models/Lead");
 const Quotation = require("../models/Quotation");
@@ -319,6 +320,7 @@ router.get(
   "/:entity",
   requireAdminSession,
   requireRole(["admin"]),
+  exportLimiter,
   async (req, res) => {
   try {
     const entity = sanitizeText(req.params.entity, 30).toLowerCase();

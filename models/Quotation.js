@@ -1,33 +1,45 @@
 const mongoose = require("mongoose");
 
-const quotationSchema = new mongoose.Schema({
-  leadId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Lead",
-  },
-
-  quotationNumber: String,
-
-  items: [
-    {
-      description: String,
-      quantity: Number,
-      rate: Number,
-      amount: Number,
+const quotationSchema = new mongoose.Schema(
+  {
+    leadId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lead",
+      required: false,
+      index: true,
     },
-  ],
 
-  subtotal: Number,
-  gst: Number,
-  totalAmount: Number,
+    quotationNumber: { type: String, trim: true, index: true },
 
-  status: {
-    type: String,
-    enum: ["Draft", "Sent", "Approved", "Rejected"],
-    default: "Draft",
+    items: [
+      {
+        description: { type: String, trim: true, required: true },
+        quantity: { type: Number, required: true, min: 0 },
+        rate: { type: Number, required: true, min: 0 },
+        amount: { type: Number, required: true, min: 0 },
+      },
+    ],
+
+    subtotal: { type: Number, default: 0, min: 0 },
+    gst: { type: Number, default: 0, min: 0 },
+    totalAmount: { type: Number, default: 0, min: 0 },
+
+    status: {
+      type: String,
+      enum: ["Draft", "Sent", "Approved", "Rejected"],
+      default: "Draft",
+      index: true,
+    },
+
+    validTill: { type: Date, index: true },
   },
+  { timestamps: true }
+);
 
-  validTill: Date,
-}, { timestamps: true });
+// Common query patterns:
+// - list by status, newest first
+// - list by lead, newest first
+quotationSchema.index({ status: 1, createdAt: -1 });
+quotationSchema.index({ leadId: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Quotation", quotationSchema);

@@ -42,9 +42,38 @@ const authLoginLimiter = buildLimiter({
   message: "Too many login attempts. Please wait 15 minutes.",
 });
 
+// Heavy admin endpoints
+const quotationCreateLimiter = buildLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: byEnvironment(25, 300),
+  message: "Too many quotation creations. Please try again shortly.",
+});
+
+const quotationConvertLimiter = buildLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: byEnvironment(40, 600),
+  message: "Too many quotation conversions. Please try again shortly.",
+});
+
+const exportLimiter = buildLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: byEnvironment(30, 400),
+  message: "Too many export requests. Please try again shortly.",
+});
+
+const envCheckLimiter = buildLimiter({
+  windowMs: 15 * 60 * 1000,
+  max: byEnvironment(60, 800),
+  message: "Too many system checks. Please try again shortly.",
+});
+
 module.exports = {
   apiLimiter,
   leadCreateLimiter,
   leadMutationLimiter,
   authLoginLimiter,
+  quotationCreateLimiter,
+  quotationConvertLimiter,
+  exportLimiter,
+  envCheckLimiter,
 };
