@@ -1,4 +1,4 @@
-import ContactLeadForm from "@/components/ContactLeadForm";
+import SmartEnquiryWizard from "@/components/SmartEnquiryWizard";
 import LazyMapEmbed from "@/components/LazyMapEmbed";
 import TrackedAnchor from "@/components/TrackedAnchor";
 import {
@@ -72,13 +72,26 @@ export default function ContactPage() {
               </TrackedAnchor>
             </p>
 
-            <p><strong>Office Location:</strong> Sambalpur, Odisha, India</p>
+            <p>
+              <strong>Our Location:</strong>{" "}
+              <TrackedAnchor
+                href="https://maps.google.com/?q=GVPW+M2+Hirakud+Odisha"
+                ctaName="Open Google Maps Location"
+                ctaLocation="contact_business_info"
+                className="text-blue-600 underline"
+                eventName="maps_click"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                GVPW+M2 Hirakud, Odisha
+              </TrackedAnchor>
+            </p>
           </div>
         </div>
 
         <div>
-          <h2 className="text-2xl font-bold mb-6">Request Industrial Quotation</h2>
-          <ContactLeadForm />
+          <h2 className="text-2xl font-bold mb-6">Smart Project Enquiry</h2>
+          <SmartEnquiryWizard />
         </div>
       </section>
 

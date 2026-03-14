@@ -83,7 +83,8 @@ function isValidEmail(email: string) {
 }
 
 function normalizePhone(phone: string) {
-  return phone.replace(/[^\d+]/g, "").trim();
+  // Strict: digits only (no +, no spaces)
+  return phone.replace(/[^\d]/g, "").trim();
 }
 
 function clampStep(n: number) {
@@ -130,64 +131,66 @@ export default function SmartEnquiryWizard() {
     }
   }
 
-  function validateStep(currentStep: number): FieldErrors {
-    const e: FieldErrors = {};
+function validateStep(currentStep: number): FieldErrors {
+  const e: FieldErrors = {};
 
-    if (currentStep === 1) {
-      if (!data.serviceType) e.serviceType = "Please select a service type.";
-    }
-
-    if (currentStep === 2) {
-      if (!data.projectLocation.trim()) e.projectLocation = "Project location is required.";
-      if (!data.projectType) e.projectType = "Please select a project type.";
-
-      if (!data.estimatedTonnage.trim()) {
-        e.estimatedTonnage = "Estimated tonnage is required.";
-      } else {
-        const ton = Number(data.estimatedTonnage);
-        if (!Number.isFinite(ton) || ton <= 0) e.estimatedTonnage = "Enter a valid tonnage greater than 0.";
-      }
-    }
-
-    if (currentStep === 3) {
-      if (!data.timeline) e.timeline = "Please select a timeline.";
-    }
-
-    if (currentStep === 4) {
-      // Optional. If provided, validate.
-      if (data.attachment) {
-        const typeOk =
-          data.attachment.type === "application/pdf" ||
-          data.attachment.type.startsWith("image/") ||
-          // DWG often comes as these, but can vary; still validate by extension below as fallback.
-          data.attachment.type === "application/acad" ||
-          data.attachment.type === "image/vnd.dwg" ||
-          data.attachment.type === "application/octet-stream";
-
-        const ext = data.attachment.name.toLowerCase().split(".").pop() || "";
-        const extOk = ext === "pdf" || ext === "dwg" || ["png", "jpg", "jpeg", "webp"].includes(ext);
-
-        if (!typeOk && !extOk) e.attachment = "Unsupported file type. Upload PDF, DWG, or an image.";
-        if (data.attachment.size > MAX_FILE_SIZE_BYTES) e.attachment = "File too large. Maximum size is 10MB.";
-      }
-    }
-
-    if (currentStep === 5) {
-      if (!data.name.trim()) e.name = "Name is required.";
-      if (!data.company.trim()) e.company = "Company name is required.";
-
-      const phone = normalizePhone(data.phone);
-      if (!phone) e.phone = "Phone number is required.";
-      else if (phone.replace(/\D/g, "").length < 8) e.phone = "Enter a valid phone number.";
-
-      if (!data.email.trim()) e.email = "Email is required.";
-      else if (!isValidEmail(data.email)) e.email = "Enter a valid email address.";
-
-      // notes optional
-    }
-
-    return e;
+  if (currentStep === 1) {
+    if (!data.serviceType) e.serviceType = "Please select a service type.";
   }
+
+  if (currentStep === 2) {
+    if (!data.projectLocation.trim()) e.projectLocation = "Project location is required.";
+    if (!data.projectType) e.projectType = "Please select a project type.";
+
+    if (!data.estimatedTonnage.trim()) {
+      e.estimatedTonnage = "Estimated tonnage is required.";
+    } else if (!/^\d+(\.\d+)?$/.test(data.estimatedTonnage.trim())) {
+      e.estimatedTonnage = "Only numeric values are allowed.";
+    } else {
+      const ton = Number(data.estimatedTonnage);
+      if (!Number.isFinite(ton) || ton <= 0) e.estimatedTonnage = "Enter a valid tonnage greater than 0.";
+    }
+  }
+
+  if (currentStep === 3) {
+    if (!data.timeline) e.timeline = "Please select a timeline.";
+  }
+
+  if (currentStep === 4) {
+    // Optional. If provided, validate.
+    if (data.attachment) {
+      const typeOk =
+        data.attachment.type === "application/pdf" ||
+        data.attachment.type.startsWith("image/") ||
+        // DWG often comes as these, but can vary; still validate by extension below as fallback.
+        data.attachment.type === "application/acad" ||
+        data.attachment.type === "image/vnd.dwg" ||
+        data.attachment.type === "application/octet-stream";
+
+      const ext = data.attachment.name.toLowerCase().split(".").pop() || "";
+      const extOk = ext === "pdf" || ext === "dwg" || ["png", "jpg", "jpeg", "webp"].includes(ext);
+
+      if (!typeOk && !extOk) e.attachment = "Unsupported file type. Upload PDF, DWG, or an image.";
+      if (data.attachment.size > MAX_FILE_SIZE_BYTES) e.attachment = "File too large. Maximum size is 10MB.";
+    }
+  }
+
+  if (currentStep === 5) {
+    if (!data.name.trim()) e.name = "Name is required.";
+    if (!data.company.trim()) e.company = "Company name is required.";
+
+    const phone = normalizePhone(data.phone);
+    if (!phone) e.phone = "Mobile number is required.";
+    else if (!/^[0-9]{10}$/.test(phone)) e.phone = "Please enter a valid 10-digit mobile number.";
+
+    if (!data.email.trim()) e.email = "Email is required.";
+    else if (!isValidEmail(data.email)) e.email = "Please enter a valid email address.";
+
+    if (!data.notes.trim()) e.notes = "Additional notes are required.";
+  }
+
+  return e;
+}
 
   function firstErrorFieldId(errs: FieldErrors) {
     const order: (keyof WizardData)[] = [
@@ -499,7 +502,11 @@ export default function SmartEnquiryWizard() {
                       <input
                         id={`${formId}-estimatedTonnage`}
                         value={data.estimatedTonnage}
-                        onChange={(e) => setField("estimatedTonnage", e.target.value)}
+                        onChange={(e) => {
+                          // allow only digits + one decimal point
+                          const next = e.target.value;
+                          if (next === "" || /^\d*\.?\d*$/.test(next)) setField("estimatedTonnage", next);
+                        }}
                         inputMode="decimal"
                         placeholder="e.g., 25"
                         className={[
@@ -733,14 +740,20 @@ export default function SmartEnquiryWizard() {
                       <input
                         id={`${formId}-phone`}
                         value={data.phone}
-                        onChange={(e) => setField("phone", e.target.value)}
-                        placeholder="e.g., +91 98xxxxxx"
+                        onChange={(e) => {
+                          // numeric only, max 10 digits
+                          const next = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setField("phone", next);
+                        }}
+                        placeholder="e.g., 9876543210"
                         className={[
                           "w-full rounded-xl border bg-white px-4 py-3 text-gray-900 outline-none transition",
                           errors.phone ? "border-red-300 focus:ring-2 focus:ring-red-200" : "border-gray-200 focus:ring-2 focus:ring-yellow-100",
                         ].join(" ")}
                         autoComplete="tel"
-                        inputMode="tel"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        maxLength={10}
                       />
                       {errors.phone ? (
                         <p className="text-sm text-red-600" role="alert">
@@ -783,8 +796,16 @@ export default function SmartEnquiryWizard() {
                       onChange={(e) => setField("notes", e.target.value)}
                       placeholder="Share scope, dimensions, site constraints, crane access, etc."
                       rows={4}
-                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition focus:ring-2 focus:ring-yellow-100"
+                      className={[
+                        "w-full rounded-xl border bg-white px-4 py-3 text-gray-900 outline-none transition",
+                        errors.notes ? "border-red-300 focus:ring-2 focus:ring-red-200" : "border-gray-200 focus:ring-2 focus:ring-yellow-100",
+                      ].join(" ")}
                     />
+                    {errors.notes ? (
+                      <p className="text-sm text-red-600" role="alert">
+                        {errors.notes}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">

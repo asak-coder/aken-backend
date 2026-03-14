@@ -1,5 +1,5 @@
 import Image from "next/image";
-import HomeLeadForm from "@/components/HomeLeadForm";
+import SmartEnquiryWizard from "@/components/SmartEnquiryWizard";
 import HeroMedia from "@/components/HeroMedia";
 import TrackedAnchor from "@/components/TrackedAnchor";
 import TrackedLink from "@/components/TrackedLink";
@@ -172,9 +172,9 @@ export default function HomePage() {
             </div>
 
             <div className="lg:col-span-5">
-              {/* Reuse existing lead form (B2B) */}
+              {/* Smart Project Enquiry Wizard */}
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-xl shadow-black/20 backdrop-blur">
-                <HomeLeadForm />
+                <SmartEnquiryWizard />
                 <p className="mt-3 text-xs text-white/70">
                   Your technical drawings are kept strictly confidential.
                 </p>
