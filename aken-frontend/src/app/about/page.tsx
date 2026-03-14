@@ -499,12 +499,6 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Footer note (keep lightweight; global SiteFooter may already exist in layout) */}
-      <div className="border-t border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-6 py-8 text-xs text-slate-500">
-          © {new Date().getFullYear()} A K ENGINEERING. All Rights Reserved.
-        </div>
-      </div>
     </main>
   );
 }

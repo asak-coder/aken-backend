@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -76,17 +77,35 @@ export default function SiteHeader() {
       >
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4">
           {/* Brand */}
-          <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-3">
             <Link
               href="/"
-              className="block truncate text-lg font-extrabold tracking-tight text-slate-900 md:text-xl"
+              className="flex shrink-0 items-center"
+              aria-label="A K ENGINEERING Home"
               onClick={closeAll}
             >
-              A K ENGINEERING
+              <Image
+                src="/logo/ak-engineering-logo.png"
+                alt="A K ENGINEERING Logo"
+                width={40}
+                height={40}
+                priority
+                className="h-10 w-10 object-contain"
+              />
             </Link>
-            <p className="truncate text-xs text-slate-600 md:text-sm">
-              EPC • Steel Fabrication • Structural Erection • PEB
-            </p>
+
+            <div className="min-w-0">
+              <Link
+                href="/"
+                className="block truncate text-lg font-extrabold tracking-tight text-slate-900 md:text-xl"
+                onClick={closeAll}
+              >
+                A K ENGINEERING
+              </Link>
+              <p className="truncate text-xs text-slate-600 md:text-sm">
+                EPC • Steel Fabrication • Structural Erection • PEB
+              </p>
+            </div>
           </div>
 
           {/* Desktop nav */}

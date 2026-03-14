@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import SmartEnquiryWizard from "@/components/SmartEnquiryWizard";
 
 export const metadata: Metadata = {
@@ -14,6 +15,28 @@ export default function EnquiryPage() {
         <div className="grid gap-6 lg:grid-cols-[1.1fr,0.9fr] lg:items-start">
           <div className="order-2 lg:order-1">
             <SmartEnquiryWizard />
+
+            <section className="mt-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                Need urgent assistance?
+              </p>
+              <h2 className="mt-2 text-xl font-bold text-gray-900">Call our engineering team.</h2>
+              <p className="mt-2 text-sm text-gray-600">
+                Phone: <span className="font-semibold text-gray-900">+91 XXXXXXXXXX</span>
+              </p>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link
+                  href="/enquiry"
+                  className="inline-flex items-center justify-center rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white hover:bg-black transition"
+                >
+                  Request Project Quote
+                </Link>
+                <p className="text-xs text-gray-500">
+                  For fastest response, submit this enquiry and we’ll call you back.
+                </p>
+              </div>
+            </section>
           </div>
 
           <aside className="order-1 lg:order-2">

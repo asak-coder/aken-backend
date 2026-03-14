@@ -5,12 +5,19 @@ import { trackEvent, trackLeadConversion, trackCtaClick } from "@/lib/analytics"
 import { getLeadAttributionPayload } from "@/lib/utm";
 
 type ServiceType =
-  | "PEB Shed Construction"
-  | "Steel Structure Fabrication"
-  | "Sheet Cladding Work"
-  | "Industrial Maintenance"
-  | "Structural Repair / Retrofitting"
-  | "Dismantling & Scrap Handling";
+  | "Pre Engineered Building (PEB) Construction"
+  | "Structural Steel Fabrication"
+  | "Steel Structure Erection"
+  | "Roofing / Sheeting / Cladding"
+  | "PUF Panel Installation"
+  | "Industrial Maintenance & Shutdown Services"
+  | "Structural Repair & Retrofitting"
+  | "Mezzanine Floor Fabrication"
+  | "Steel Platforms, Walkways & Ladders"
+  | "Industrial Equipment Support Structures"
+  | "Plant Expansion Structural Works"
+  | "Dismantling & Scrap Management"
+  | "Custom Fabrication & Installation";
 
 type ProjectType = "New Construction" | "Expansion" | "Maintenance" | "Shutdown Job";
 
@@ -44,12 +51,19 @@ type FieldErrors = Partial<Record<keyof WizardData, string>>;
 const TOTAL_STEPS = 5;
 
 const SERVICE_OPTIONS: ServiceType[] = [
-  "PEB Shed Construction",
-  "Steel Structure Fabrication",
-  "Sheet Cladding Work",
-  "Industrial Maintenance",
-  "Structural Repair / Retrofitting",
-  "Dismantling & Scrap Handling",
+  "Pre Engineered Building (PEB) Construction",
+  "Structural Steel Fabrication",
+  "Steel Structure Erection",
+  "Roofing / Sheeting / Cladding",
+  "PUF Panel Installation",
+  "Industrial Maintenance & Shutdown Services",
+  "Structural Repair & Retrofitting",
+  "Mezzanine Floor Fabrication",
+  "Steel Platforms, Walkways & Ladders",
+  "Industrial Equipment Support Structures",
+  "Plant Expansion Structural Works",
+  "Dismantling & Scrap Management",
+  "Custom Fabrication & Installation",
 ];
 
 const PROJECT_TYPE_OPTIONS: ProjectType[] = ["New Construction", "Expansion", "Maintenance", "Shutdown Job"];
@@ -478,6 +492,9 @@ export default function SmartEnquiryWizard() {
                     <label htmlFor={`${formId}-estimatedTonnage`} className="text-sm font-semibold text-gray-900">
                       Estimated Steel Tonnage
                     </label>
+                    <p className="text-xs text-gray-500">
+                      Approximate quantity of steel required.
+                    </p>
                     <div className="relative">
                       <input
                         id={`${formId}-estimatedTonnage`}
