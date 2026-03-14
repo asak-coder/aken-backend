@@ -1,6 +1,11 @@
+import ProjectGallery, { ProjectGalleryItem } from "@/components/ProjectGallery";
 import TrackedAnchor from "@/components/TrackedAnchor";
 import TrackedLink from "@/components/TrackedLink";
-import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_E164, CONTACT_WHATSAPP_URL } from "@/lib/contact";
+import {
+  CONTACT_PHONE_DISPLAY,
+  CONTACT_PHONE_E164,
+  CONTACT_WHATSAPP_URL,
+} from "@/lib/contact";
 import { getServiceStructuredDataJson } from "@/lib/schema";
 
 export const metadata = {
@@ -11,6 +16,45 @@ export const metadata = {
   keywords:
     "Pre Engineered Building Company India, Industrial Steel Fabrication Contractor, Industrial Shed Construction, Structural Steel Erection Services, EPC Contractor India",
 };
+
+const pebGallery: ProjectGalleryItem[] = [
+  {
+    src: "/projects/peb-warehouse-construction.jpg",
+    alt: "Industrial warehouse PEB construction work by A K ENGINEERING",
+    title: "Warehouse PEB Construction",
+  },
+  {
+    src: "/projects/peb-shed-erection-sambalpur.jpg",
+    alt: "PEB shed erection work at an industrial site in Sambalpur by A K ENGINEERING",
+    title: "PEB Shed Erection",
+  },
+];
+
+const fabricationGallery: ProjectGalleryItem[] = [
+  {
+    src: "/projects/steel-fabrication-workshop-cutting-welding.jpg",
+    alt: "Structural steel fabrication in workshop showing cutting and welding work by A K ENGINEERING",
+    title: "Workshop Fabrication",
+  },
+  {
+    src: "/projects/steel-beam-column-fabrication.jpg",
+    alt: "Steel beam and column fabrication work in workshop by A K ENGINEERING",
+    title: "Beam & Column Fabrication",
+  },
+];
+
+const pufGallery: ProjectGalleryItem[] = [
+  {
+    src: "/projects/puf-panel-installation-insulated-shed.jpg",
+    alt: "PUF insulated panel installation work on industrial shed by A K ENGINEERING",
+    title: "PUF Panel Installation",
+  },
+  {
+    src: "/projects/puf-panel-roofing-installation.jpg",
+    alt: "PUF panel roofing installation work for industrial shed by A K ENGINEERING",
+    title: "PUF Panel Roofing",
+  },
+];
 
 export default function ServicesPage() {
   return (
@@ -80,6 +124,10 @@ export default function ServicesPage() {
           <li>High Clearance Industrial Buildings</li>
           <li>Custom Steel Building Solutions</li>
         </ul>
+
+        <div className="mt-8">
+          <ProjectGallery title="PEB Construction Photos" items={pebGallery} />
+        </div>
       </section>
 
       <section className="bg-gray-100 py-20 px-6">
@@ -100,6 +148,13 @@ export default function ServicesPage() {
             <li>Industrial Platforms & Walkways</li>
             <li>Custom Engineered Steel Components</li>
           </ul>
+
+          <div className="mt-8">
+            <ProjectGallery
+              title="Steel Fabrication Photos"
+              items={fabricationGallery}
+            />
+          </div>
         </div>
       </section>
 
@@ -119,6 +174,10 @@ export default function ServicesPage() {
           <li>Steel Structure Installation</li>
           <li>Industrial Expansion Projects</li>
         </ul>
+
+        <div className="mt-8">
+          <ProjectGallery title="PUF Panel & Cladding Photos" items={pufGallery} />
+        </div>
       </section>
 
       <section className="bg-gray-100 py-20 px-6">
