@@ -33,7 +33,7 @@ export default function SiteHeader() {
     setServicesOpen(false);
   };
 
-  const requestQuoteHref = useMemo(() => "/contact", []);
+  const requestQuoteHref = useMemo(() => "/enquiry", []);
 
   useEffect(() => {
     const onScroll = () => setIsStuck(window.scrollY > 8);
@@ -189,7 +189,7 @@ export default function SiteHeader() {
               href={requestQuoteHref}
               className="rounded-lg bg-orange-500 px-4 py-2.5 text-sm font-extrabold text-black hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
             >
-              REQUEST PROJECT QUOTE
+              GET QUOTE
             </Link>
           </div>
 
@@ -299,7 +299,7 @@ export default function SiteHeader() {
                     className="rounded-lg bg-orange-500 px-4 py-3 text-center text-sm font-extrabold text-black hover:bg-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-200"
                     onClick={closeAll}
                   >
-                    REQUEST PROJECT QUOTE
+                    GET QUOTE
                   </Link>
                 </div>
 

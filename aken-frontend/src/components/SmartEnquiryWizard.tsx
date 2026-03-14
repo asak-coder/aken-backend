@@ -340,7 +340,7 @@ export default function SmartEnquiryWizard() {
         status: "network_error",
       });
       setSubmitStatus("error");
-      setSubmitMessage("Network error. Please try again.");
+      setSubmitMessage("Unable to submit enquiry. Please try again or contact us directly.");
     } finally {
       setSubmitting(false);
     }
