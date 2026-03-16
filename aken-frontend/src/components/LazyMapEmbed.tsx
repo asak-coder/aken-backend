@@ -3,9 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import { trackCtaClick } from "@/lib/analytics";
 
-const MAP_SRC = "https://www.google.com/maps?q=Sambalpur,Odisha,India&output=embed";
+const DEFAULT_MAP_TITLE = "A K ENGINEERING Location Map";
+const DEFAULT_LAT = 21.5367316772452;
+const DEFAULT_LNG = 83.89499883022955;
 
-export default function LazyMapEmbed() {
+type LazyMapEmbedProps = {
+  title?: string;
+  lat?: number;
+  lng?: number;
+  className?: string;
+};
+
+function buildMapSrc(lat: number, lng: number) {
+  return `https://www.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+}
+
+export default function LazyMapEmbed({
+  title = DEFAULT_MAP_TITLE,
+  lat = DEFAULT_LAT,
+  lng = DEFAULT_LNG,
+  className,
+}: LazyMapEmbedProps) {
+  const MAP_SRC = buildMapSrc(lat, lng);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [shouldLoad, setShouldLoad] = useState(() => {
     if (typeof window === "undefined") {
@@ -43,7 +62,10 @@ export default function LazyMapEmbed() {
   return (
     <div
       ref={containerRef}
-      className="w-full h-96 rounded-xl overflow-hidden shadow-lg bg-gray-100 flex items-center justify-center"
+      className={
+        className ??
+        "w-full h-96 rounded-xl overflow-hidden shadow-lg bg-gray-100 flex items-center justify-center"
+      }
     >
       {shouldLoad ? (
         <iframe
@@ -51,7 +73,7 @@ export default function LazyMapEmbed() {
           width="100%"
           height="100%"
           loading="lazy"
-          title="A K ENGINEERING Location Map"
+          title={title}
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
         />

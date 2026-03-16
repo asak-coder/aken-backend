@@ -6,7 +6,6 @@ import {
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_E164,
   CONTACT_WHATSAPP_PREFILL_URL,
-  CONTACT_WHATSAPP_URL,
 } from "@/lib/contact";
 
 export default function ContactPage() {
@@ -73,19 +72,14 @@ export default function ContactPage() {
               </TrackedAnchor>
             </p>
 
-            <p>
-              <strong>Our Location:</strong>{" "}
-              <TrackedAnchor
-                href="https://maps.google.com/?q=GVPW+M2+Hirakud+Odisha"
-                ctaName="Open Google Maps Location"
-                ctaLocation="contact_business_info"
-                className="text-blue-600 underline"
-                eventName="maps_click"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GVPW+M2 Hirakud, Odisha
-              </TrackedAnchor>
+            <p className="text-gray-700">
+              <strong>Locations:</strong> Bhubaneswar Office (Odisha) • Hirakud
+              Site Office (Odisha)
+            </p>
+
+            <p className="text-sm text-gray-600">
+              Keywords: PEB Contractor Bhubaneswar • Steel Fabrication Contractor
+              Hirakud • Industrial Steel Structure Contractor Odisha
             </p>
           </div>
         </div>
@@ -97,8 +91,85 @@ export default function ContactPage() {
       </section>
 
       <section className="pb-20 px-6 max-w-6xl mx-auto">
-        <h2 className="text-2xl font-bold mb-6 text-center">Our Location</h2>
-        <LazyMapEmbed />
+        <h2 className="text-2xl font-bold mb-6 text-center">Our Locations</h2>
+
+        <div className="grid gap-8 md:grid-cols-2">
+          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+            <div className="p-5">
+              <h3 className="text-lg font-semibold">
+                A K ENGINEERING – Bhubaneswar Office
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">A K ENGINEERING</p>
+            </div>
+
+            <div className="px-5 pb-5">
+              <div className="rounded-xl overflow-hidden border border-gray-200">
+                <LazyMapEmbed
+                  title="A K ENGINEERING – Bhubaneswar Office"
+                  lat={20.273165901094252}
+                  lng={85.8028445394262}
+                />
+              </div>
+
+              <div className="mt-4">
+                <TrackedAnchor
+                  href="https://maps.google.com/?q=20.273165901094252,85.8028445394262"
+                  ctaName="Open in Google Maps - Bhubaneswar"
+                  ctaLocation="contact_map_bhubaneswar"
+                  className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-white text-sm font-medium hover:bg-gray-800 transition"
+                  eventName="maps_click"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open in Google Maps
+                </TrackedAnchor>
+              </div>
+
+              <p className="mt-4 text-xs text-gray-600">
+                PEB Contractor Bhubaneswar • Industrial EPC Contractor Odisha •
+                Structural Steel Fabrication Bhubaneswar
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+            <div className="p-5">
+              <h3 className="text-lg font-semibold">
+                A K ENGINEERING – Hirakud
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">A K ENGINEERING</p>
+            </div>
+
+            <div className="px-5 pb-5">
+              <div className="rounded-xl overflow-hidden border border-gray-200">
+                <LazyMapEmbed
+                  title="A K ENGINEERING – Hirakud"
+                  lat={21.5367316772452}
+                  lng={83.89499883022955}
+                />
+              </div>
+
+              <div className="mt-4">
+                <TrackedAnchor
+                  href="https://maps.google.com/?q=21.5367316772452,83.89499883022955"
+                  ctaName="Open in Google Maps - Hirakud"
+                  ctaLocation="contact_map_hirakud"
+                  className="inline-flex items-center justify-center rounded-lg bg-black px-4 py-2 text-white text-sm font-medium hover:bg-gray-800 transition"
+                  eventName="maps_click"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open in Google Maps
+                </TrackedAnchor>
+              </div>
+
+              <p className="mt-4 text-xs text-gray-600">
+                Steel Fabrication Contractor Hirakud • Industrial Steel Structure
+                Contractor Odisha • PEB Contractor Odisha
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
     </main>
