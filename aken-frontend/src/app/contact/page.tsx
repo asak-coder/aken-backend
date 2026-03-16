@@ -5,6 +5,7 @@ import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_E164,
+  CONTACT_WHATSAPP_PREFILL_URL,
   CONTACT_WHATSAPP_URL,
 } from "@/lib/contact";
 
@@ -60,7 +61,7 @@ export default function ContactPage() {
             <p>
               <strong>WhatsApp:</strong>{" "}
               <TrackedAnchor
-                href={CONTACT_WHATSAPP_URL}
+                href={CONTACT_WHATSAPP_PREFILL_URL}
                 ctaName="WhatsApp Contact Page"
                 ctaLocation="contact_business_info"
                 className="text-green-700 underline"

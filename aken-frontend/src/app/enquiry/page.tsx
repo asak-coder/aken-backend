@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import SmartEnquiryWizard from "@/components/SmartEnquiryWizard";
+import TrackedAnchor from "@/components/TrackedAnchor";
+import { CONTACT_PHONE_E164, CONTACT_WHATSAPP_PREFILL_URL } from "@/lib/contact";
 
 export const metadata: Metadata = {
   title: "Industrial Project Enquiry | A K ENGINEERING",
@@ -22,7 +24,31 @@ export default function EnquiryPage() {
               </p>
               <h2 className="mt-2 text-xl font-bold text-gray-900">Call our engineering team.</h2>
               <p className="mt-2 text-sm text-gray-600">
-                Phone: <span className="font-semibold text-gray-900">+91 XXXXXXXXXX</span>
+                Phone:{" "}
+                <TrackedAnchor
+                  href={`tel:${CONTACT_PHONE_E164}`}
+                  ctaName="Call Enquiry"
+                  ctaLocation="enquiry_urgent_assistance"
+                  eventName="phone_click"
+                  className="font-semibold text-gray-900 underline"
+                >
+                  8280076864
+                </TrackedAnchor>
+              </p>
+
+              <p className="mt-2 text-sm text-gray-600">
+                WhatsApp:{" "}
+                <TrackedAnchor
+                  href={CONTACT_WHATSAPP_PREFILL_URL}
+                  ctaName="WhatsApp Enquiry"
+                  ctaLocation="enquiry_urgent_assistance"
+                  eventName="whatsapp_click"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-gray-900 underline"
+                >
+                  Chat now
+                </TrackedAnchor>
               </p>
 
               <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">

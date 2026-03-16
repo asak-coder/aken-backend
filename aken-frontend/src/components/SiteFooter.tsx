@@ -3,6 +3,7 @@ import {
   CONTACT_EMAIL,
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_E164,
+  CONTACT_WHATSAPP_PREFILL_URL,
   CONTACT_WHATSAPP_URL,
 } from "@/lib/contact";
 
@@ -143,7 +144,7 @@ export default function SiteFooter() {
               </a>
 
               <a
-                href={CONTACT_WHATSAPP_URL}
+                href={CONTACT_WHATSAPP_PREFILL_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="rounded-xl border border-white/10 bg-emerald-500/90 p-4 font-semibold text-black hover:bg-emerald-400"
@@ -171,6 +172,9 @@ export default function SiteFooter() {
       {/* Optional: in-page quick WhatsApp for footer context */}
       <a href={CONTACT_WHATSAPP_URL} className="sr-only">
         {CONTACT_WHATSAPP_URL}
+      </a>
+      <a href={CONTACT_WHATSAPP_PREFILL_URL} className="sr-only">
+        {CONTACT_WHATSAPP_PREFILL_URL}
       </a>
     </footer>
   );

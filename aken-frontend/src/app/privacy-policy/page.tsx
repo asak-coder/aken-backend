@@ -83,8 +83,18 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="mb-3 text-2xl font-bold">7. Contact</h2>
           <p>A K ENGINEERING, Sambalpur, Odisha, India</p>
-          <p>Email: web.akengg@gmail.com</p>
-          <p>Phone: +91 99999 99999</p>
+          <p>
+            Email:{" "}
+            <a className="underline" href="mailto:contact@aken.firm.in">
+              contact@aken.firm.in
+            </a>
+          </p>
+          <p>
+            Phone:{" "}
+            <a className="underline" href="tel:+918280076864">
+              8280076864
+            </a>
+          </p>
         </section>
       </section>
     </main>
