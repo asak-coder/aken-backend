@@ -112,8 +112,14 @@ async function sendLeadNotificationEmails(leadId) {
         subject: adminMail.subject,
         html: adminMail.html,
       });
+      console.log("Email notification sent (admin) for lead:", String(lead._id));
       patchSet["emailNotifications.adminNotifiedAt"] = new Date();
     } catch (error) {
+      console.error(
+        "Email notification error (admin) for lead:",
+        String(lead._id),
+        error,
+      );
       errors.push(`admin:${error.message}`);
     }
   }
@@ -127,8 +133,17 @@ async function sendLeadNotificationEmails(leadId) {
         subject: clientMail.subject,
         html: clientMail.html,
       });
+      console.log(
+        "Email notification sent (client acknowledgement) for lead:",
+        String(lead._id),
+      );
       patchSet["emailNotifications.clientAcknowledgedAt"] = new Date();
     } catch (error) {
+      console.error(
+        "Email notification error (client acknowledgement) for lead:",
+        String(lead._id),
+        error,
+      );
       errors.push(`client:${error.message}`);
     }
   }
@@ -140,6 +155,16 @@ async function sendLeadNotificationEmails(leadId) {
   }
 
   await applyNotificationUpdate(leadId, { $set: patchSet });
+
+  if (errors.length > 0) {
+    console.error(
+      "Lead email notifications processed with issues for lead:",
+      String(leadId),
+      errors,
+    );
+  } else {
+    console.log("Lead email notifications complete for lead:", String(leadId));
+  }
 
   return {
     ok: errors.length === 0,
