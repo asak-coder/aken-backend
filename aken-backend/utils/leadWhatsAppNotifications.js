@@ -132,8 +132,21 @@ async function sendLeadWhatsAppNotifications(leadId) {
             campaign: lead.utmCampaign || "",
           },
         });
+        console.log(
+          "WhatsApp notification sent (admin) for lead:",
+          String(lead._id),
+          "to:",
+          String(to),
+        );
       } catch (error) {
         const fallback = buildFallbackUrl(to, adminMessage);
+        console.error(
+          "WhatsApp notification error (admin) for lead:",
+          String(lead._id),
+          "to:",
+          String(to),
+          error,
+        );
         errors.push(`admin:${to}:${error.message}`);
         patchSet["whatsappNotifications.lastFallbackUrl"] = fallback;
       }
@@ -157,9 +170,22 @@ async function sendLeadWhatsAppNotifications(leadId) {
         message: clientMessage,
         leadId: String(lead._id),
       });
+      console.log(
+        "WhatsApp notification sent (client acknowledgement) for lead:",
+        String(lead._id),
+        "to:",
+        String(clientTo),
+      );
       patchSet["whatsappNotifications.clientAcknowledgedAt"] = new Date();
     } catch (error) {
       const fallback = buildFallbackUrl(clientTo, clientMessage);
+      console.error(
+        "WhatsApp notification error (client acknowledgement) for lead:",
+        String(lead._id),
+        "to:",
+        String(clientTo),
+        error,
+      );
       errors.push(`client:${clientTo}:${error.message}`);
       patchSet["whatsappNotifications.lastFallbackUrl"] = fallback;
     }
@@ -170,6 +196,16 @@ async function sendLeadWhatsAppNotifications(leadId) {
     : null;
 
   await applyUpdate(leadId, { $set: patchSet });
+
+  if (errors.length > 0) {
+    console.error(
+      "Lead WhatsApp notifications processed with issues for lead:",
+      String(leadId),
+      errors,
+    );
+  } else {
+    console.log("Lead WhatsApp notifications complete for lead:", String(leadId));
+  }
 
   return {
     ok: errors.length === 0,

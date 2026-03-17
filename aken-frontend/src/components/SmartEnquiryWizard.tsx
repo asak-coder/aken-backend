@@ -289,6 +289,8 @@ function validateStep(currentStep: number): FieldErrors {
         : {}),
     };
 
+    console.log("Submitting enquiry:", payload);
+
     try {
       trackCtaClick({
         ctaName: "Submit Project Enquiry",
@@ -340,6 +342,9 @@ function validateStep(currentStep: number): FieldErrors {
         const errJson = await res.json().catch(() => null);
         const msg =
           errJson?.error?.message ||
+          (Array.isArray(errJson?.error?.details) && errJson.error.details.length
+            ? errJson.error.details.join(" ")
+            : undefined) ||
           errJson?.message ||
           "Please review your details and try again.";
         trackEvent("lead_submit_failed", {

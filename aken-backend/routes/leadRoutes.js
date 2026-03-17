@@ -93,6 +93,8 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
     const lead = new Lead(leadPayload);
     await lead.save();
 
+    console.log("Lead created:", lead);
+
     // Non-blocking lead notifications (admin + client acknowledgement).
     sendLeadNotificationEmails(lead._id).catch((err) => {
       log("error", req, "Lead email notification failed", {
@@ -512,6 +514,36 @@ router.get("/", requireAdminSession, requireRole(["admin"]), async (req, res) =>
     });
   }
 });
+
+// ===============================
+// GET - Fetch Lead By ID (admin)
+// ===============================
+router.get(
+  "/:id",
+  requireAdminSession,
+  requireRole(["admin"]),
+  async (req, res) => {
+    try {
+      const lead = await Lead.findById(req.params.id).lean();
+      if (!lead) {
+        return sendError(res, req, {
+          statusCode: 404,
+          code: "LEAD_NOT_FOUND",
+          message: "Lead not found",
+        });
+      }
+
+      return sendSuccess(res, req, lead);
+    } catch (error) {
+      return sendError(res, req, {
+        statusCode: 500,
+        code: "LEAD_FETCH_ONE_FAILED",
+        message: "Unable to fetch lead",
+        err: error,
+      });
+    }
+  },
+);
 // CANONICAL: UPDATE LEAD STATUS
 router.put(
   "/:id/status",

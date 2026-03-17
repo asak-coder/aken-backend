@@ -35,6 +35,37 @@ const leadSchema = new mongoose.Schema(
       trim: true,
       maxlength: 2000,
     },
+
+    // Smart enquiry wizard fields (optional; stored for better quoting context)
+    serviceType: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+    projectLocation: {
+      type: String,
+      trim: true,
+      maxlength: 200,
+      default: null,
+    },
+    estimatedTonnage: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    projectType: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: null,
+    },
+    timeline: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+      default: null,
+    },
     utmSource: {
       type: String,
       trim: true,

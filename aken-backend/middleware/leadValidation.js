@@ -83,11 +83,14 @@ function extractLeadAttribution(body, errors) {
 }
 
 function validateCreateLead(req, res, next) {
-  const contactPerson = sanitizeText(req.body.contactPerson);
+  // Accept both legacy website payloads and the new SmartEnquiryWizard payload.
+  // Legacy keys: contactPerson, companyName, message
+  // Wizard keys: name, company, notes (+ project fields)
+  const contactPerson = sanitizeText(req.body.contactPerson || req.body.name);
   const email = sanitizeText(req.body.email).toLowerCase();
-  const companyName = sanitizeText(req.body.companyName);
+  const companyName = sanitizeText(req.body.companyName || req.body.company);
   const phone = sanitizeText(req.body.phone);
-  const message = sanitizeText(req.body.message);
+  const message = sanitizeText(req.body.message || req.body.notes);
 
   const errors = [];
   const attribution = extractLeadAttribution(req.body, errors);
@@ -121,12 +124,44 @@ function validateCreateLead(req, res, next) {
     });
   }
 
+  // Pass through optional project enquiry fields if present.
+  const serviceType = sanitizeText(req.body.serviceType);
+  const projectLocation = sanitizeText(req.body.projectLocation);
+  const projectType = sanitizeText(req.body.projectType);
+  const timeline = sanitizeText(req.body.timeline);
+  const estimatedTonnageRaw = req.body.estimatedTonnage;
+
+  let estimatedTonnage;
+  if (estimatedTonnageRaw !== undefined && estimatedTonnageRaw !== null && String(estimatedTonnageRaw).trim() !== "") {
+    const n = Number(estimatedTonnageRaw);
+    if (!Number.isFinite(n) || n <= 0) {
+      errors.push("estimatedTonnage must be a number greater than 0.");
+    } else {
+      estimatedTonnage = n;
+    }
+  }
+
+  // If any additional errors were added above, fail consistently.
+  if (errors.length > 0) {
+    return sendError(res, req, {
+      statusCode: 400,
+      code: "VALIDATION_FAILED",
+      message: "Validation failed",
+      details: errors,
+    });
+  }
+
   req.validatedLead = {
     contactPerson,
     email,
     companyName,
     phone,
     message,
+    ...(serviceType ? { serviceType } : {}),
+    ...(projectLocation ? { projectLocation } : {}),
+    ...(projectType ? { projectType } : {}),
+    ...(timeline ? { timeline } : {}),
+    ...(estimatedTonnage !== undefined ? { estimatedTonnage } : {}),
     ...attribution,
   };
 
