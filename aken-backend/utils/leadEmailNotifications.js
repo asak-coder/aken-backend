@@ -90,11 +90,10 @@ async function sendLeadNotificationEmails(leadId) {
     await applyNotificationUpdate(leadId, {
       $set: {
         "emailNotifications.lastError":
-          "Email configuration is missing. Set SMTP_* environment variables.",
+          "Email configuration is missing. Set RESEND_API_KEY environment variable.",
         "emailNotifications.lastErrorDetails": {
           code: "EMAIL_NOT_CONFIGURED",
-          message:
-            "Email configuration is missing. Set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS.",
+          message: "Email configuration is missing. Set RESEND_API_KEY.",
         },
       },
     });
