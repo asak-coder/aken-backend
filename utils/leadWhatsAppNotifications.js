@@ -47,6 +47,21 @@ function wait(ms) {
   });
 }
 
+function toSafeWebhookError(error) {
+  if (!error) {
+    return null;
+  }
+
+  return {
+    name: error.name,
+    message: error.message,
+    code: error.code,
+    statusCode: error.statusCode,
+    responseBody: error.responseBody,
+    stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
+  };
+}
+
 async function sendWithRetry(payload, options = {}) {
   const maxAttempts = options.maxAttempts || 2;
   let lastError = null;
@@ -106,6 +121,10 @@ async function sendLeadWhatsAppNotifications(leadId) {
       $set: {
         "whatsappNotifications.lastError":
           "WhatsApp webhook is not configured. Set WHATSAPP_WEBHOOK_URL.",
+        "whatsappNotifications.lastErrorDetails": {
+          code: "WHATSAPP_NOT_CONFIGURED",
+          message: "WhatsApp webhook is not configured. Set WHATSAPP_WEBHOOK_URL.",
+        },
       },
     });
     return { ok: false, reason: "WHATSAPP_NOT_CONFIGURED" };
@@ -113,6 +132,7 @@ async function sendLeadWhatsAppNotifications(leadId) {
 
   const errors = [];
   const patchSet = {};
+  const errorDetails = [];
 
   const adminAlreadySent = Boolean(lead?.whatsappNotifications?.adminNotifiedAt);
   const adminRecipients = getAdminRecipients();
@@ -148,6 +168,15 @@ async function sendLeadWhatsAppNotifications(leadId) {
           error,
         );
         errors.push(`admin:${to}:${error.message}`);
+        errorDetails.push({
+          channel: "whatsapp",
+          type: "admin",
+          leadId: String(lead._id),
+          to,
+          fallbackUrl: fallback,
+          err: toSafeWebhookError(error),
+          occurredAt: new Date().toISOString(),
+        });
         patchSet["whatsappNotifications.lastFallbackUrl"] = fallback;
       }
     }
@@ -187,12 +216,25 @@ async function sendLeadWhatsAppNotifications(leadId) {
         error,
       );
       errors.push(`client:${clientTo}:${error.message}`);
+      errorDetails.push({
+        channel: "whatsapp",
+        type: "client_ack",
+        leadId: String(lead._id),
+        to: clientTo,
+        fallbackUrl: fallback,
+        err: toSafeWebhookError(error),
+        occurredAt: new Date().toISOString(),
+      });
       patchSet["whatsappNotifications.lastFallbackUrl"] = fallback;
     }
   }
 
   patchSet["whatsappNotifications.lastError"] = errors.length
     ? errors.join(" | ")
+    : null;
+
+  patchSet["whatsappNotifications.lastErrorDetails"] = errors.length
+    ? errorDetails
     : null;
 
   await applyUpdate(leadId, { $set: patchSet });

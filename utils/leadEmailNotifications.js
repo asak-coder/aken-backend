@@ -1,5 +1,6 @@
 const Lead = require("../models/Lead");
 const sendEmail = require("./sendEmail");
+const { toSafeMailError } = require("./sendEmail");
 
 function escapeHtml(value) {
   if (typeof value !== "string") {
@@ -89,7 +90,12 @@ async function sendLeadNotificationEmails(leadId) {
     await applyNotificationUpdate(leadId, {
       $set: {
         "emailNotifications.lastError":
-          "Email configuration is missing. Set SMTP or EMAIL_* environment variables.",
+          "Email configuration is missing. Set SMTP_* environment variables.",
+        "emailNotifications.lastErrorDetails": {
+          code: "EMAIL_NOT_CONFIGURED",
+          message:
+            "Email configuration is missing. Set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS.",
+        },
       },
     });
 
@@ -101,6 +107,7 @@ async function sendLeadNotificationEmails(leadId) {
 
   const patchSet = {};
   const errors = [];
+  const errorDetails = [];
 
   const adminRecipients = getAdminRecipients();
   const adminAlreadySent = Boolean(lead?.emailNotifications?.adminNotifiedAt);
@@ -121,6 +128,14 @@ async function sendLeadNotificationEmails(leadId) {
         error,
       );
       errors.push(`admin:${error.message}`);
+      errorDetails.push({
+        channel: "email",
+        type: "admin",
+        leadId: String(lead._id),
+        to: adminRecipients,
+        err: toSafeMailError(error),
+        occurredAt: new Date().toISOString(),
+      });
     }
   }
 
@@ -145,13 +160,23 @@ async function sendLeadNotificationEmails(leadId) {
         error,
       );
       errors.push(`client:${error.message}`);
+      errorDetails.push({
+        channel: "email",
+        type: "client_ack",
+        leadId: String(lead._id),
+        to: [lead.email],
+        err: toSafeMailError(error),
+        occurredAt: new Date().toISOString(),
+      });
     }
   }
 
   if (errors.length > 0) {
     patchSet["emailNotifications.lastError"] = errors.join(" | ");
+    patchSet["emailNotifications.lastErrorDetails"] = errorDetails;
   } else {
     patchSet["emailNotifications.lastError"] = null;
+    patchSet["emailNotifications.lastErrorDetails"] = null;
   }
 
   await applyNotificationUpdate(leadId, { $set: patchSet });

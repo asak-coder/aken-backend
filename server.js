@@ -139,6 +139,7 @@ const exportRoutes = require("./routes/exportRoutes");
 const systemRoutes = require("./routes/systemRoutes");
 const authRoutes = require("./routes/authRoutes");
 const bootstrapRoutes = require("./routes/bootstrapRoutes");
+const integrationWebhookRoutes = require("./routes/integrationWebhookRoutes");
 
 app.use("/api/leads", leadRoutes);
 app.use("/api/quotations", quotationRoutes);
@@ -148,6 +149,7 @@ app.use("/api/export", exportRoutes);
 app.use("/api/system", systemRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bootstrap", bootstrapRoutes);
+app.use("/api/integrations/webhooks", integrationWebhookRoutes);
 app.get("/health", (_req, res) => {
   const latestDiagnostics = getBackendEnvDiagnostics();
   res.status(200).json({
