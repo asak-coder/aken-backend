@@ -59,13 +59,13 @@ function createTransporter() {
     Boolean(smtp.user) &&
     Boolean(smtp.pass);
 
-  if (!hasSmtpConfig) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error(
-        "Email is not configured for production. Set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS.",
-      );
-    }
+  // Production requirement: SMTP only (Zoho). Fail closed.
+  if (process.env.NODE_ENV === "production") {
+    assertProductionZohoSmtpOrThrow();
+  }
 
+  if (!hasSmtpConfig) {
+    // Allow legacy local/testing config in non-production only.
     if (Boolean(process.env.EMAIL_USER) && Boolean(process.env.EMAIL_PASS)) {
       return nodemailer.createTransport({
         service: process.env.EMAIL_SERVICE || "gmail",
@@ -77,7 +77,7 @@ function createTransporter() {
     }
 
     throw new Error(
-      "Email is not configured. Set SMTP_* or EMAIL_USER/EMAIL_PASS environment variables.",
+      "Email is not configured. Set SMTP_* (preferred) or EMAIL_USER/EMAIL_PASS for local testing.",
     );
   }
 
@@ -89,7 +89,6 @@ function createTransporter() {
       user: smtp.user,
       pass: smtp.pass,
     },
-    // Zoho/465 often benefits from an explicit connection timeout.
     connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 15000),
     greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS || 15000),
     socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 20000),
@@ -136,6 +135,31 @@ function toSafeMailError(error) {
     rejectedErrors: error.rejectedErrors,
     stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
   };
+}
+
+function assertProductionZohoSmtpOrThrow() {
+  if (process.env.NODE_ENV !== "production") return;
+
+  const smtp = getSmtpConfig();
+  const missing = [];
+  if (!smtp.host) missing.push("SMTP_HOST");
+  if (!smtp.port) missing.push("SMTP_PORT");
+  if (!smtp.user) missing.push("SMTP_USER");
+  if (!smtp.pass) missing.push("SMTP_PASS");
+
+  if (missing.length > 0) {
+    throw new Error(
+      `Email is not configured for production. Missing: ${missing.join(", ")}.`,
+    );
+  }
+
+  const host = String(smtp.host || "").toLowerCase();
+  // Enforce Zoho SMTP only (per requirement). Example: smtppro.zoho.in
+  if (!host.includes("zoho.")) {
+    throw new Error(
+      "Invalid SMTP_HOST for production. Zoho SMTP is required (e.g. smtppro.zoho.in).",
+    );
+  }
 }
 
 async function sendEmail(mailOptions) {
