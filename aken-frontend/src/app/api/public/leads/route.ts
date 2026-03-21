@@ -35,25 +35,22 @@ function getBackendBaseUrlOrThrow() {
   const backendBaseUrl = normalizeBackendBaseUrl(process.env.BACKEND_API_URL);
 
   if (!backendBaseUrl) {
-    if (isProduction) {
-      const error = new Error("BACKEND_API_URL is missing or invalid in production.");
-      // @ts-expect-error - attach metadata for handler
-      error.statusCode = 500;
-      // @ts-expect-error - attach metadata for handler
-      error.code = "BACKEND_API_URL_MISSING";
-      throw error;
-    }
-
-    // Development fallback to local backend.
-    return "http://localhost:5000";
-  }
-
-  if (isProduction && isLocalhostTarget(backendBaseUrl)) {
-    const error = new Error("BACKEND_API_URL must not point to localhost in production.");
+    const error = new Error("BACKEND_API_URL is missing or invalid.");
     // @ts-expect-error - attach metadata for handler
     error.statusCode = 500;
     // @ts-expect-error - attach metadata for handler
-    error.code = "BACKEND_API_URL_LOCALHOST_FORBIDDEN";
+    error.code = isProduction ? "BACKEND_API_URL_MISSING" : "BACKEND_API_URL_INVALID";
+    throw error;
+  }
+
+  if (isLocalhostTarget(backendBaseUrl)) {
+    const error = new Error("BACKEND_API_URL must not point to localhost.");
+    // @ts-expect-error - attach metadata for handler
+    error.statusCode = 500;
+    // @ts-expect-error - attach metadata for handler
+    error.code = isProduction
+      ? "BACKEND_API_URL_LOCALHOST_FORBIDDEN"
+      : "BACKEND_API_URL_LOCALHOST";
     throw error;
   }
 
@@ -75,6 +72,7 @@ export async function POST(req: NextRequest) {
       statusCode,
       backendApiUrl: (process.env.BACKEND_API_URL || "").trim() || null,
       nodeEnv: process.env.NODE_ENV || "development",
+      hint: "Set BACKEND_API_URL on Vercel to https://aken-backend-1.onrender.com (no trailing slash).",
     });
 
     return NextResponse.json(
