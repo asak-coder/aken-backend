@@ -150,9 +150,6 @@ app.use("/api/system", systemRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/bootstrap", bootstrapRoutes);
 app.use("/api/integrations/webhooks", integrationWebhookRoutes);
-// Back-compat mount (some callers may use /api/integrations/webhooks/whatsapp directly)
-// Keep both to eliminate any deploy drift while provider connection is pending.
-app.use("/api/integrations/webhooks/whatsapp", integrationWebhookRoutes);
 app.get("/health", (_req, res) => {
   const latestDiagnostics = getBackendEnvDiagnostics();
   res.status(200).json({
