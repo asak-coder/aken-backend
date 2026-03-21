@@ -27,6 +27,12 @@ function isEmailConfigured() {
     Boolean(smtp.user) &&
     Boolean(smtp.pass);
 
+  // Production requirement: Zoho SMTP only.
+  if (process.env.NODE_ENV === "production") {
+    return hasSmtpConfig;
+  }
+
+  // Allow legacy local/testing config in non-production.
   const hasGmailStyleConfig =
     Boolean(process.env.EMAIL_USER) && Boolean(process.env.EMAIL_PASS);
 
@@ -46,12 +52,6 @@ function getDefaultFromAddress() {
 }
 
 function createTransporter() {
-  if (!isEmailConfigured()) {
-    throw new Error(
-      "Email is not configured. Set SMTP_* (preferred) or EMAIL_USER/EMAIL_PASS environment variables.",
-    );
-  }
-
   const smtp = getSmtpConfig();
   const hasSmtpConfig =
     Boolean(smtp.host) &&
@@ -59,26 +59,40 @@ function createTransporter() {
     Boolean(smtp.user) &&
     Boolean(smtp.pass);
 
-  if (hasSmtpConfig) {
-    return nodemailer.createTransport({
-      host: smtp.host,
-      port: smtp.port,
-      secure: smtp.secure,
-      auth: {
-        user: smtp.user,
-        pass: smtp.pass,
-      },
-      // Zoho/465 often benefits from an explicit connection timeout.
-      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 15000),
-    });
+  if (!hasSmtpConfig) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Email is not configured for production. Set SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS.",
+      );
+    }
+
+    if (Boolean(process.env.EMAIL_USER) && Boolean(process.env.EMAIL_PASS)) {
+      return nodemailer.createTransport({
+        service: process.env.EMAIL_SERVICE || "gmail",
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASS,
+        },
+      });
+    }
+
+    throw new Error(
+      "Email is not configured. Set SMTP_* or EMAIL_USER/EMAIL_PASS environment variables.",
+    );
   }
 
   return nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || "gmail",
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      user: smtp.user,
+      pass: smtp.pass,
     },
+    // Zoho/465 often benefits from an explicit connection timeout.
+    connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 15000),
+    greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS || 15000),
+    socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS || 20000),
   });
 }
 
@@ -132,6 +146,12 @@ async function sendEmail(mailOptions) {
   };
 
   try {
+    // Verify is expensive; only do it when explicitly requested (e.g. diagnosis)
+    // or when running in production with VERBOSE_EMAIL_LOGS enabled.
+    if (String(process.env.EMAIL_VERIFY_ON_SEND || "").toLowerCase() === "true") {
+      await transporter.verify();
+    }
+
     return await transporter.sendMail(finalOptions);
   } catch (error) {
     // High-signal structured log, without secrets.
