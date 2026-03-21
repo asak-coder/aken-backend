@@ -1,13 +1,31 @@
 const nodemailer = require("nodemailer");
 
 let cachedTransporter = null;
+let cachedTransporterKey = null;
+
+function getSmtpConfig() {
+  const host = (process.env.SMTP_HOST || "").trim();
+  const portRaw = (process.env.SMTP_PORT || "").trim();
+  const user = (process.env.SMTP_USER || "").trim();
+  const pass = process.env.SMTP_PASS || "";
+  const secureRaw = (process.env.SMTP_SECURE || "").trim();
+
+  return {
+    host,
+    port: portRaw ? Number(portRaw) : null,
+    secure: String(secureRaw || "false").toLowerCase() === "true",
+    user,
+    pass,
+  };
+}
 
 function isEmailConfigured() {
+  const smtp = getSmtpConfig();
   const hasSmtpConfig =
-    Boolean(process.env.SMTP_HOST) &&
-    Boolean(process.env.SMTP_PORT) &&
-    Boolean(process.env.SMTP_USER) &&
-    Boolean(process.env.SMTP_PASS);
+    Boolean(smtp.host) &&
+    Boolean(smtp.port) &&
+    Boolean(smtp.user) &&
+    Boolean(smtp.pass);
 
   const hasGmailStyleConfig =
     Boolean(process.env.EMAIL_USER) && Boolean(process.env.EMAIL_PASS);
@@ -21,7 +39,7 @@ function getDefaultFromAddress() {
     return explicitFrom;
   }
 
-  const senderUser = process.env.SMTP_USER || process.env.EMAIL_USER;
+  const senderUser = (process.env.SMTP_USER || process.env.EMAIL_USER || "").trim();
   return senderUser
     ? `"A K ENGINEERING" <${senderUser}>`
     : `"A K ENGINEERING" <no-reply@aken.firm.in>`;
@@ -30,27 +48,28 @@ function getDefaultFromAddress() {
 function createTransporter() {
   if (!isEmailConfigured()) {
     throw new Error(
-      "Email is not configured. Set SMTP_* or EMAIL_USER/EMAIL_PASS environment variables.",
+      "Email is not configured. Set SMTP_* (preferred) or EMAIL_USER/EMAIL_PASS environment variables.",
     );
   }
 
+  const smtp = getSmtpConfig();
   const hasSmtpConfig =
-    Boolean(process.env.SMTP_HOST) &&
-    Boolean(process.env.SMTP_PORT) &&
-    Boolean(process.env.SMTP_USER) &&
-    Boolean(process.env.SMTP_PASS);
+    Boolean(smtp.host) &&
+    Boolean(smtp.port) &&
+    Boolean(smtp.user) &&
+    Boolean(smtp.pass);
 
   if (hasSmtpConfig) {
-    const secure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
-
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      secure,
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.secure,
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
+        user: smtp.user,
+        pass: smtp.pass,
       },
+      // Zoho/465 often benefits from an explicit connection timeout.
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS || 15000),
     });
   }
 
@@ -63,12 +82,46 @@ function createTransporter() {
   });
 }
 
+function getTransporterCacheKey() {
+  const smtp = getSmtpConfig();
+  return [
+    smtp.host,
+    smtp.port,
+    smtp.secure,
+    smtp.user,
+    Boolean(smtp.pass),
+    (process.env.EMAIL_SERVICE || "").trim(),
+    Boolean(process.env.EMAIL_USER),
+    Boolean(process.env.EMAIL_PASS),
+  ].join("|");
+}
+
 function getTransporter() {
-  if (!cachedTransporter) {
+  const key = getTransporterCacheKey();
+  if (!cachedTransporter || cachedTransporterKey !== key) {
     cachedTransporter = createTransporter();
+    cachedTransporterKey = key;
   }
 
   return cachedTransporter;
+}
+
+function toSafeMailError(error) {
+  if (!error) {
+    return null;
+  }
+
+  return {
+    name: error.name,
+    message: error.message,
+    code: error.code,
+    command: error.command,
+    response: error.response,
+    responseCode: error.responseCode,
+    rejected: error.rejected,
+    rejectedErrors: error.rejectedErrors,
+    stack: process.env.NODE_ENV === "production" ? undefined : error.stack,
+  };
 }
 
 async function sendEmail(mailOptions) {
@@ -78,9 +131,24 @@ async function sendEmail(mailOptions) {
     from: mailOptions.from || getDefaultFromAddress(),
   };
 
-  return transporter.sendMail(finalOptions);
+  try {
+    return await transporter.sendMail(finalOptions);
+  } catch (error) {
+    // High-signal structured log, without secrets.
+    console.error("[mail] send failed", {
+      to: finalOptions.to,
+      subject: finalOptions.subject,
+      from: finalOptions.from,
+      smtpHost: (process.env.SMTP_HOST || "").trim() || null,
+      smtpPort: (process.env.SMTP_PORT || "").trim() || null,
+      smtpSecure: String(process.env.SMTP_SECURE || "").trim() || null,
+      err: toSafeMailError(error),
+    });
+    throw error;
+  }
 }
 
 module.exports = sendEmail;
 module.exports.sendEmail = sendEmail;
 module.exports.isEmailConfigured = isEmailConfigured;
+module.exports.toSafeMailError = toSafeMailError;

@@ -159,6 +159,10 @@ const leadSchema = new mongoose.Schema(
         maxlength: 500,
         default: null,
       },
+      lastErrorDetails: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
+      },
     },
     whatsappNotifications: {
       adminNotifiedAt: {
@@ -181,6 +185,10 @@ const leadSchema = new mongoose.Schema(
         type: String,
         trim: true,
         maxlength: 500,
+        default: null,
+      },
+      lastErrorDetails: {
+        type: mongoose.Schema.Types.Mixed,
         default: null,
       },
       lastFallbackUrl: {
