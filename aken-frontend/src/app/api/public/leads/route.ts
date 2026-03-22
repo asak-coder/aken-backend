@@ -7,11 +7,11 @@ type AppError = Error & {
 
 export const runtime = "nodejs";
 
+export const dynamic = "force-dynamic";
+
 function normalizeBackendBaseUrl(rawValue: string | undefined) {
   const value = (rawValue || "").trim();
-  if (!value) {
-    return "";
-  }
+  if (!value) return "";
 
   try {
     const parsed = new URL(value);
@@ -31,56 +31,61 @@ function isLocalhostTarget(target: string) {
 function getBackendBaseUrlOrThrow() {
   const nodeEnv = (process.env.NODE_ENV || "development").toLowerCase();
   const isProduction = nodeEnv === "production";
-
   const backendBaseUrl = normalizeBackendBaseUrl(process.env.BACKEND_API_URL);
 
   if (!backendBaseUrl) {
-<<<<<<< HEAD
     const error = new Error("BACKEND_API_URL is missing or invalid.");
-    // @ts-expect-error - attach metadata for handler
+    // @ts-expect-error custom metadata
     error.statusCode = 500;
-    // @ts-expect-error - attach metadata for handler
+    // @ts-expect-error custom metadata
     error.code = isProduction ? "BACKEND_API_URL_MISSING" : "BACKEND_API_URL_INVALID";
     throw error;
   }
 
   if (isLocalhostTarget(backendBaseUrl)) {
     const error = new Error("BACKEND_API_URL must not point to localhost.");
-    // @ts-expect-error - attach metadata for handler
+    // @ts-expect-error custom metadata
     error.statusCode = 500;
-    // @ts-expect-error - attach metadata for handler
+    // @ts-expect-error custom metadata
     error.code = isProduction
       ? "BACKEND_API_URL_LOCALHOST_FORBIDDEN"
       : "BACKEND_API_URL_LOCALHOST";
-=======
-    if (isProduction) {
-      const error = new Error("BACKEND_API_URL is missing or invalid in production.");
-      // @ts-expect-error - attach metadata for handler
-      error.statusCode = 500;
-      // @ts-expect-error - attach metadata for handler
-      error.code = "BACKEND_API_URL_MISSING";
-      throw error;
-    }
-
-    // Development fallback to local backend.
-    return "http://localhost:5000";
-  }
-
-  if (isProduction && isLocalhostTarget(backendBaseUrl)) {
-    const error = new Error("BACKEND_API_URL must not point to localhost in production.");
-    // @ts-expect-error - attach metadata for handler
-    error.statusCode = 500;
-    // @ts-expect-error - attach metadata for handler
-    error.code = "BACKEND_API_URL_LOCALHOST_FORBIDDEN";
->>>>>>> f4eaa96f78400ec74b01e996de70654c85146480
     throw error;
   }
 
   return backendBaseUrl;
 }
 
+async function readBody(req: NextRequest) {
+  try {
+    const arrayBuffer = await req.arrayBuffer();
+    return arrayBuffer.byteLength ? arrayBuffer : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function jsonError(status: number, code: string, message: string, requestId?: string) {
+  return NextResponse.json(
+    {
+      success: false,
+      error: { code, message },
+    },
+    {
+      status,
+      headers: {
+        "Cache-Control": "no-store",
+        ...(requestId ? { "x-request-id": requestId } : {}),
+      },
+    },
+  );
+}
+
 export async function POST(req: NextRequest) {
+  const requestId = crypto.randomUUID();
+
   let targetUrl = "";
+
   try {
     const backendBaseUrl = getBackendBaseUrlOrThrow();
     targetUrl = `${backendBaseUrl}/api/leads`;
@@ -90,40 +95,18 @@ export async function POST(req: NextRequest) {
     const code = String(err?.code || "BACKEND_PROXY_MISCONFIGURED");
 
     console.error("[public-leads-proxy] misconfigured", {
+      requestId,
       code,
       statusCode,
       backendApiUrl: (process.env.BACKEND_API_URL || "").trim() || null,
       nodeEnv: process.env.NODE_ENV || "development",
-<<<<<<< HEAD
-      hint: "Set BACKEND_API_URL on Vercel to https://aken-backend-1.onrender.com (no trailing slash).",
-=======
->>>>>>> f4eaa96f78400ec74b01e996de70654c85146480
     });
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code,
-          message: "Server is misconfigured. Please try again later.",
-        },
-      },
-      { status: statusCode, headers: { "Cache-Control": "no-store" } },
-    );
+    return jsonError(statusCode, code, "Server is misconfigured. Please try again later.", requestId);
   }
 
-  // Only forward what we must.
   const contentType = req.headers.get("content-type") || "application/json";
-
-  let body: BodyInit | undefined;
-  try {
-    const arrayBuffer = await req.arrayBuffer();
-    body = arrayBuffer.byteLength ? arrayBuffer : undefined;
-  } catch {
-    body = undefined;
-  }
-
-  const requestId = crypto.randomUUID();
+  const body = await readBody(req);
 
   try {
     console.log("[public-leads-proxy] upstream request", {
@@ -149,14 +132,14 @@ export async function POST(req: NextRequest) {
       ok: upstreamRes.ok,
     });
 
-    // Pass through status + response body; prevent caching.
+    const resHeaders = new Headers();
+    resHeaders.set("Cache-Control", "no-store");
+    resHeaders.set("x-request-id", requestId);
+    resHeaders.set("Content-Type", upstreamRes.headers.get("content-type") || "application/json");
+
     return new NextResponse(upstreamRes.body, {
       status: upstreamRes.status,
-      headers: {
-        "Cache-Control": "no-store",
-        "Content-Type": upstreamRes.headers.get("content-type") || "application/json",
-        "x-request-id": requestId,
-      },
+      headers: resHeaders,
     });
   } catch (error) {
     const err = error as AppError;
@@ -168,15 +151,6 @@ export async function POST(req: NextRequest) {
       name: err?.name,
     });
 
-    return NextResponse.json(
-      {
-        success: false,
-        error: {
-          code: "UPSTREAM_UNAVAILABLE",
-          message: "Lead service temporarily unavailable.",
-        },
-      },
-      { status: 503, headers: { "Cache-Control": "no-store", "x-request-id": requestId } },
-    );
+    return jsonError(503, "UPSTREAM_UNAVAILABLE", "Lead service temporarily unavailable.", requestId);
   }
 }
