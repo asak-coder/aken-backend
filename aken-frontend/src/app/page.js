@@ -120,9 +120,19 @@ export default function HomePage() {
         <div className="relative mx-auto max-w-7xl px-6 py-24 md:py-28">
           <div className="grid gap-10 lg:grid-cols-12 lg:items-center">
             <div className="lg:col-span-7">
-              <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold tracking-wide text-white/90">
-                Hirakud, Sambalpur • Industrial EPC • Steel Fabrication • PEB
-              </p>
+              <div className="inline-flex items-center gap-3">
+                <Image
+                  src="/logo/logo.svg"
+                  alt="A K ENGINEERING"
+                  width={36}
+                  height={36}
+                  priority
+                  className="h-9 w-9 rounded-md bg-white/5 p-1 object-contain"
+                />
+                <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold tracking-wide text-white/90">
+                  Hirakud, Sambalpur • Industrial EPC • Steel Fabrication • PEB
+                </p>
+              </div>
 
               <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight md:text-5xl">
                 Engineering Strength for India’s Industrial Infrastructure.

@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -87,6 +89,24 @@ function LoginPageInner() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-black text-white">
       <div className="bg-gray-900 p-8 rounded-xl w-80">
+        <Link
+          href="/"
+          aria-label="A K ENGINEERING Home"
+          className="mb-5 inline-flex items-center justify-center gap-3 w-full"
+        >
+          <Image
+            src="/logo/logo.svg"
+            alt="A K ENGINEERING"
+            width={44}
+            height={44}
+            priority
+            className="h-11 w-11 rounded-md bg-white/5 p-1 object-contain"
+          />
+          <span className="text-sm font-semibold text-white/90">
+            A K ENGINEERING
+          </span>
+        </Link>
+
         <h1 className="text-xl mb-4">Admin Login</h1>
 
         <form onSubmit={handleLogin}>

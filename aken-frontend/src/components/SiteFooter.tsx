@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   CONTACT_EMAIL,
@@ -14,7 +15,21 @@ export default function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           {/* Column 1: Company + Trust */}
           <div>
-            <div className="text-lg font-extrabold tracking-tight">A K ENGINEERING</div>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-3"
+              aria-label="A K ENGINEERING Home"
+            >
+              <Image
+                src="/logo/logo.svg"
+                alt="A K ENGINEERING"
+                width={44}
+                height={44}
+                className="h-11 w-11 rounded-md bg-white/5 p-1 object-contain"
+              />
+              <div className="text-lg font-extrabold tracking-tight">A K ENGINEERING</div>
+            </Link>
+
             <p className="mt-3 text-sm leading-relaxed text-white/75">
               Industrial EPC contractor specializing in steel fabrication, structural erection,
               and pre-engineered buildings (PEB). Execution-first delivery with safety compliance

@@ -85,8 +85,8 @@ export default function SiteHeader() {
               onClick={closeAll}
             >
               <Image
-                src="/logo/ak-engineering-logo.png"
-                alt="A K ENGINEERING Logo"
+                src="/logo/logo.svg"
+                alt="A K ENGINEERING"
                 width={40}
                 height={40}
                 priority
