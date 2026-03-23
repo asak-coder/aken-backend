@@ -11,6 +11,11 @@ function isAdminLoginPath(pathname: string) {
   return pathname === "/admin/login" || pathname.startsWith("/admin/login/");
 }
 
+function isNextDataRequest(pathname: string) {
+  // Next.js prefetch/data requests: middleware matchers run for these too.
+  return pathname.startsWith("/_next/");
+}
+
 function buildLoginRedirect(req: NextRequest) {
   const url = req.nextUrl.clone();
   url.pathname = "/admin/login";
@@ -23,6 +28,11 @@ export function middleware(req: NextRequest) {
 
   // Only protect /admin/*
   if (!isAdminPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  // Always allow Next internal assets/data.
+  if (isNextDataRequest(pathname)) {
     return NextResponse.next();
   }
 
@@ -44,7 +54,7 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // IMPORTANT: must include the login route too so middleware build artifacts always exist.
-  // (Vercel build can fail with missing .next/server/middleware.js.nft.json otherwise.)
-  matcher: ["/admin/:path*", "/admin/login", "/admin/login/:path*"],
+  // Keep matcher minimal and stable. This ensures Next emits a single middleware bundle
+  // and Vercel's tracer can reliably find the middleware artifacts for packaging.
+  matcher: ["/admin/:path*"],
 };
