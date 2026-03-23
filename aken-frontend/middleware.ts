@@ -38,11 +38,13 @@ export function middleware(req: NextRequest) {
     return buildLoginRedirect(req);
   }
 
-  // We intentionally do not verify JWT signature in edge middleware (no backend secret here).
+  // Don't do any dynamic/session fetch here; keep middleware edge-safe and stable on Vercel.
   // Backend is the source of truth via /api/admin-session and protected /api/* routes.
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  // IMPORTANT: must include the login route too so middleware build artifacts always exist.
+  // (Vercel build can fail with missing .next/server/middleware.js.nft.json otherwise.)
+  matcher: ["/admin/:path*", "/admin/login", "/admin/login/:path*"],
 };
