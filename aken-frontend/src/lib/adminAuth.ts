@@ -56,82 +56,11 @@ export function getAdminSessionTtlSeconds() {
   return SESSION_TTL_SECONDS;
 }
 
-export function hasValidAdminAuthConfig() {
-  const password = (process.env.ADMIN_PASSWORD || "").trim();
-  const secret = getAuthSecret();
-  return Boolean(password && secret);
-}
-
-export function isValidAdminCredentials(username: string, password: string) {
-  const expectedUsername = (process.env.ADMIN_USERNAME || "admin").trim();
-  const expectedPassword = (process.env.ADMIN_PASSWORD || "").trim();
-
-  if (!expectedPassword) {
-    return false;
-  }
-
-  return (
-    safeCompare(username.trim().toLowerCase(), expectedUsername.toLowerCase()) &&
-    safeCompare(password, expectedPassword)
-  );
-}
-
-export function createAdminSessionToken() {
-  const secret = getAuthSecret();
-  if (!secret) {
-    throw new Error("ADMIN_AUTH_SECRET is missing.");
-  }
-
-  const now = Math.floor(Date.now() / 1000);
-  const payload: AdminSessionPayload = {
-    sub: "admin",
-    iat: now,
-    exp: now + SESSION_TTL_SECONDS,
-    sid: crypto.randomBytes(16).toString("hex"),
-  };
-
-  const header = {
-    alg: "HS256",
-    typ: "JWT",
-  };
-
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const signature = hmacSha256(`${encodedHeader}.${encodedPayload}`, secret);
-
-  return `${encodedHeader}.${encodedPayload}.${signature}`;
-}
-
-export function verifyAdminSessionToken(token: string) {
-  const secret = getAuthSecret();
-  if (!secret) {
-    return null;
-  }
-
-  const parts = token.split(".");
-  if (parts.length !== 3) {
-    return null;
-  }
-
-  const [encodedHeader, encodedPayload, incomingSignature] = parts;
-  const expectedSignature = hmacSha256(`${encodedHeader}.${encodedPayload}`, secret);
-  if (!safeCompare(incomingSignature, expectedSignature)) {
-    return null;
-  }
-
-  try {
-    const payload = JSON.parse(base64UrlDecode(encodedPayload)) as AdminSessionPayload;
-    if (!payload || payload.sub !== "admin") {
-      return null;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    if (typeof payload.exp !== "number" || payload.exp <= now) {
-      return null;
-    }
-
-    return payload;
-  } catch {
-    return null;
-  }
-}
+/**
+ * NOTE:
+ * This file previously contained a demo "ADMIN_PASSWORD" based auth implementation.
+ * The production admin auth for this repo now lives in the backend (Express) and uses
+ * bcrypt + a JWT session stored in an HttpOnly cookie.
+ *
+ * Keep only the cookie name helper here for client/server usage in Next.js.
+ */

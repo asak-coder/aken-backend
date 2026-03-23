@@ -12,12 +12,12 @@ function getBackendUrl() {
 }
 
 export async function POST(req: NextRequest) {
-  let email = "";
+  let identifier = "";
   let password = "";
 
   try {
     const body = await req.json();
-    email = String(body?.email || "").trim();
+    identifier = String(body?.identifier || "").trim();
     password = String(body?.password || "");
   } catch {
     const response = NextResponse.json({ error: "Invalid request body." }, { status: 400 });
@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
     return response;
   }
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     const response = NextResponse.json(
-      { error: "Email and password are required." },
+      { error: "Email/username and password are required." },
       { status: 400 },
     );
     response.headers.set("Cache-Control", "no-store");
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
   const backendRes = await fetch(`${getBackendUrl()}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ identifier, password }),
   });
 
   if (!backendRes.ok) {

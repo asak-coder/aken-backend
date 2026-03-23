@@ -1,7 +1,10 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 
-const SESSION_COOKIE_NAME = "aken_admin_session";
+const SESSION_COOKIE_NAME =
+  String(process.env.NODE_ENV || "").toLowerCase() === "production"
+    ? "__Host-aken_admin_session"
+    : "aken_admin_session";
 const CSRF_COOKIE_NAME = "aken_csrf";
 
 function isProduction() {
@@ -28,9 +31,17 @@ function getCookieBaseOptions() {
 }
 
 function getCookieDomain() {
-  // For single-domain frontend (aken.firm.in) we typically omit domain
-  // so cookie is host-only and safer. If you later want cross-subdomain cookies,
-  // set COOKIE_DOMAIN=.firm.in (careful).
+  // IMPORTANT:
+  // - If you use a __Host- cookie, you MUST NOT set a Domain attribute.
+  // - This setup (frontend on Vercel, backend on Render) uses a Next.js server
+  //   route as a same-origin "cookie setter", so host-only cookies are ideal.
+  //
+  // Only allow COOKIE_DOMAIN when not using __Host-.
+  if (SESSION_COOKIE_NAME.startsWith("__Host-")) {
+    return undefined;
+  }
+
+  // If you later want cross-subdomain cookies, set COOKIE_DOMAIN=.example.com (careful).
   const domain = process.env.COOKIE_DOMAIN;
   return domain ? String(domain).trim() : undefined;
 }

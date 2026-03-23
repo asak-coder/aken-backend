@@ -27,7 +27,7 @@ function sanitizeNextPath(nextValue: string | null) {
 }
 
 function LoginPageInner() {
-  const [email, setEmail] = useState("admin@aken.firm.in");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,13 +44,11 @@ function LoginPageInner() {
     let mounted = true;
 
     fetch("/api/admin-session", { cache: "no-store" })
-      .then((res) => {
-        if (!mounted) {
-          return;
-        }
-
-        if (res.ok) {
-          router.replace("/admin/leads");
+      .then((res) => res.json().catch(() => null))
+      .then((data) => {
+        if (!mounted) return;
+        if (data?.authenticated) {
+          router.replace(nextPath);
         }
       })
       .catch(() => {
@@ -60,7 +58,7 @@ function LoginPageInner() {
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, nextPath]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -72,15 +70,15 @@ function LoginPageInner() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ identifier, password }),
     });
 
     const data = await res.json();
 
     if (res.ok) {
-      router.replace("/admin/leads");
+      router.replace(nextPath);
     } else {
-      setError(data.error || "Login failed.");
+      setError(data?.error || "Invalid credentials.");
     }
 
     setLoading(false);
@@ -111,12 +109,13 @@ function LoginPageInner() {
 
         <form onSubmit={handleLogin}>
           <input
-            type="email"
-            placeholder="Admin Email"
+            type="text"
+            placeholder="Email or username"
             className="w-full p-2 text-black rounded mb-3"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             autoComplete="username"
+            inputMode="email"
           />
 
           <input
