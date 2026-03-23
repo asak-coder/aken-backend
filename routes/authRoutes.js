@@ -17,19 +17,21 @@ const router = express.Router();
 
 router.post("/login", authLoginLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
 
-    if (!email || !password) {
+    if (!identifier || !password) {
       return sendError(res, req, {
         statusCode: 400,
         code: "LOGIN_INPUT_INVALID",
-        message: "Email and password are required.",
+        message: "Email/username and password are required.",
       });
     }
 
-    const user = await User.findOne({ email: String(email).toLowerCase() }).select(
-      "+passwordHash",
-    );
+    const normalizedIdentifier = String(identifier).trim().toLowerCase();
+
+    // Backwards compatibility: treat identifier as email for now.
+    // (If you add a username field later, extend this query with $or.)
+    const user = await User.findOne({ email: normalizedIdentifier }).select("+passwordHash");
     if (!user) {
       return sendError(res, req, {
         statusCode: 401,
