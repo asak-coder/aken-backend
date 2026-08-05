@@ -1,44 +1,22 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the users table (was: Mongoose User model).
+// API surface matches Mongoose: find/findById/findOne/create/updateOne/
+// findByIdAndUpdate/exists/countDocuments + chainable query (+select/+lean/+sort)
+const { createRepository } = require("./createRepository");
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const userSchema = new mongoose.Schema(
-  {
-    name: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-      default: "",
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-      maxlength: 254,
-      match: EMAIL_REGEX,
-    },
-    // IMPORTANT: must be a bcrypt hash. Never store plaintext passwords.
-    passwordHash: {
-      type: String,
-      required: true,
-      select: false,
-    },
-    role: {
-      type: String,
-      enum: ["admin", "sales"],
-      default: "sales",
-      index: true,
-    },
-    lastLoginAt: {
-      type: Date,
-      default: null,
-    },
+const User = createRepository({
+  table: "users",
+  fieldMap: {
+    id: "_id",
+    name: "name",
+    email: "email",
+    password_hash: "passwordHash",
+    role: "role",
+    last_login_at: "lastLoginAt",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {},
+  subTables: {},
+});
 
-userSchema.index({ email: 1 }, { unique: true });
-
-module.exports = mongoose.model("User", userSchema);
+module.exports = User;

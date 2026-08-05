@@ -1,62 +1,65 @@
-const mongoose = require("mongoose");
+const { getSupabaseClient, isSupabaseConfigured } = require("./supabaseClient");
 const { log } = require("./requestLogger");
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 10_000;
-const DEFAULT_SOCKET_TIMEOUT_MS = 45_000;
 
-function sanitizeMongoUri(uri) {
-  if (!uri) return "";
+function sanitizeSupabaseUrl(url) {
+  if (!url) return "";
   try {
-    // Redact credentials if present: mongodb(+srv)://user:pass@host/...
-    return uri.replace(/\/\/([^:/]+):([^@]+)@/g, "//***:***@");
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
   } catch {
-    return "[redacted]";
+    return "[invalid]";
   }
 }
 
 async function connectToDatabase() {
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) {
-    const error = new Error("MONGO_URI is missing");
-    error.code = "MONGO_URI_MISSING";
+  if (!isSupabaseConfigured()) {
+    const error = new Error(
+      "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are missing",
+    );
+    error.code = "SUPABASE_CONFIG_MISSING";
     throw error;
   }
 
-  const isProduction = String(process.env.NODE_ENV || "").toLowerCase() === "production";
+  const connectTimeoutMS = Number(
+    process.env.SUPABASE_CONNECT_TIMEOUT_MS || DEFAULT_CONNECT_TIMEOUT_MS,
+  );
 
-  // Recommended: disable autoIndex in production to avoid performance issues on cold start.
-  mongoose.set("autoIndex", !isProduction);
-
-  mongoose.connection.on("connected", () => {
-    log("info", null, "MongoDB connected");
-  });
-
-  mongoose.connection.on("error", (err) => {
-    log("error", null, "MongoDB connection error", {
-      errMessage: err?.message,
-    });
-  });
-
-  mongoose.connection.on("disconnected", () => {
-    log("warn", null, "MongoDB disconnected");
-  });
-
-  const connectTimeoutMS = Number(process.env.MONGO_CONNECT_TIMEOUT_MS || DEFAULT_CONNECT_TIMEOUT_MS);
-  const socketTimeoutMS = Number(process.env.MONGO_SOCKET_TIMEOUT_MS || DEFAULT_SOCKET_TIMEOUT_MS);
-
-  log("info", null, "Connecting to MongoDB", {
-    mongoUri: sanitizeMongoUri(mongoUri),
+  log("info", null, "Connecting to Supabase PostgreSQL", {
+    supabaseUrl: sanitizeSupabaseUrl(process.env.SUPABASE_URL),
     connectTimeoutMS,
-    socketTimeoutMS,
-    autoIndex: !isProduction,
   });
 
-  await mongoose.connect(mongoUri, {
-    serverSelectionTimeoutMS: connectTimeoutMS,
-    socketTimeoutMS,
+  const client = getSupabaseClient();
+
+  // Connectivity/health check: SELECT 1 against the Postgres instance.
+  // The service-role client uses the PostgREST endpoint. A lightweight
+  // metadata/health call confirms the project is reachable.
+  const checkResult = await Promise.race([
+    client.from("users").select("id", { count: "exact", head: true }),
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(new Error("Supabase connection timed out")),
+        connectTimeoutMS,
+      ),
+    ),
+  ]);
+
+  if (checkResult.error) {
+    const error = new Error(
+      `Supabase connection failed: ${checkResult.error.message}`,
+    );
+    error.code = "SUPABASE_CONNECT_FAILED";
+    throw error;
+  }
+
+  log("info", null, "Supabase PostgreSQL connected", {
+    table: "users",
+    reachable: true,
   });
 
-  return mongoose.connection;
+  return client;
 }
 
 module.exports = {

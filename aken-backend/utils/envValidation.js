@@ -19,9 +19,22 @@ function isBooleanLike(value) {
   return normalized === "true" || normalized === "false";
 }
 
-function isMongoUri(value) {
+function isSupabaseUrl(value) {
   const normalized = String(value || "").trim();
-  return normalized.startsWith("mongodb://") || normalized.startsWith("mongodb+srv://");
+  if (!normalized) return false;
+
+  try {
+    const url = new URL(normalized);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+function isServiceRoleKeyLike(value) {
+  const normalized = String(value || "").trim();
+  // Supabase service-role JWT keys are long base64/JWT strings.
+  return normalized.length >= 40;
 }
 
 function getBackendEnvDiagnostics() {
@@ -29,21 +42,37 @@ function getBackendEnvDiagnostics() {
   const isProduction = nodeEnv === "production";
   const checks = [];
 
-  const mongoUri = process.env.MONGO_URI;
+  const supabaseUrl = process.env.SUPABASE_URL;
   checks.push({
-    key: "MONGO_URI",
+    key: "SUPABASE_URL",
     category: "database",
     severity: "critical",
-    status: hasValue("MONGO_URI")
-      ? isMongoUri(mongoUri)
+    status: hasValue("SUPABASE_URL")
+      ? isSupabaseUrl(supabaseUrl)
         ? "ok"
         : "invalid"
       : "missing",
-    message: hasValue("MONGO_URI")
-      ? isMongoUri(mongoUri)
-        ? "MongoDB connection URI is configured."
-        : "MONGO_URI format looks invalid. Expected mongodb:// or mongodb+srv://."
-      : "MONGO_URI is missing.",
+    message: hasValue("SUPABASE_URL")
+      ? isSupabaseUrl(supabaseUrl)
+        ? "Supabase project URL is configured."
+        : "SUPABASE_URL format looks invalid. Expected https://<project-ref>.supabase.co."
+      : "SUPABASE_URL is missing.",
+  });
+
+  checks.push({
+    key: "SUPABASE_SERVICE_ROLE_KEY",
+    category: "database",
+    severity: "critical",
+    status: hasValue("SUPABASE_SERVICE_ROLE_KEY")
+      ? isServiceRoleKeyLike(process.env.SUPABASE_SERVICE_ROLE_KEY)
+        ? "ok"
+        : "invalid"
+      : "missing",
+    message: hasValue("SUPABASE_SERVICE_ROLE_KEY")
+      ? isServiceRoleKeyLike(process.env.SUPABASE_SERVICE_ROLE_KEY)
+        ? "Supabase service-role key is configured."
+        : "SUPABASE_SERVICE_ROLE_KEY looks too short. Expected the full JWT service-role key."
+      : "SUPABASE_SERVICE_ROLE_KEY is missing.",
   });
 
   const corsOrigins = parseList(process.env.CORS_ORIGINS);
@@ -185,4 +214,3 @@ module.exports = {
   getBackendEnvDiagnostics,
   assertBackendEnvForStartup,
 };
-
