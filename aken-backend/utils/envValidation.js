@@ -111,32 +111,19 @@ function getBackendEnvDiagnostics() {
       : "JWT_SECRET is missing. /api/auth login token flow will fail.",
   });
 
-  const hasSmtpFullConfig =
-    hasValue("SMTP_HOST") &&
-    hasValue("SMTP_PORT") &&
-    hasValue("SMTP_USER") &&
-    hasValue("SMTP_PASS");
-  const hasLegacyEmailConfig = hasValue("EMAIL_USER") && hasValue("EMAIL_PASS");
-  const hasPartialSmtp =
-    hasValue("SMTP_HOST") ||
-    hasValue("SMTP_PORT") ||
-    hasValue("SMTP_USER") ||
-    hasValue("SMTP_PASS");
+  const hasResendKey = hasValue("RESEND_API_KEY");
+  const hasPartialResend = hasValue("EMAIL_FROM") || hasValue("LEAD_ALERT_EMAILS");
 
   checks.push({
-    key: "SMTP_* / EMAIL_*",
+    key: "RESEND_API_KEY / EMAIL_FROM",
     category: "notifications",
     severity: "warning",
-    status: hasSmtpFullConfig || hasLegacyEmailConfig
-      ? "ok"
-      : hasPartialSmtp
-        ? "invalid"
-        : "warning",
-    message: hasSmtpFullConfig || hasLegacyEmailConfig
-      ? "Email notifications are configured."
-      : hasPartialSmtp
-        ? "SMTP config is incomplete. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS."
-        : "Email notifications are not configured.",
+    status: hasResendKey ? "ok" : "warning",
+    message: hasResendKey
+      ? "Email notifications are configured via Resend."
+      : hasPartialResend
+        ? "EMAIL_FROM/LEAD_ALERT_EMAILS are set but RESEND_API_KEY is missing. Email notifications will be skipped."
+        : "Email notifications are not configured. Set RESEND_API_KEY to enable.",
   });
 
   checks.push({

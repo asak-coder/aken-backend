@@ -1,45 +1,84 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the quotations table (was: Mongoose Quotation model).
+// Rebuilds the embedded `items` array via a 1:N join on quotation_items.
+const { createRepository } = require("./createRepository");
+const { roundMoney } = require("../utils/quotationTotals");
 
-const quotationSchema = new mongoose.Schema(
-  {
-    leadId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Lead",
-      required: false,
-      index: true,
-    },
+// Persistence-boundary guard (F1 fix):
+// The repository calls beforeSave(doc) immediately before every INSERT/UPDATE.
+// We recompute totalAmount from the subtotal/gst that are actually being
+// written, so no write path can persist a row that violates the Phase 2
+// CHECK constraint `quotations_total_integrity (total_amount = subtotal + gst)`.
+function enforceTotalIntegrity(doc) {
+  const subtotal = roundMoney(doc.subtotal);
+  const gst = roundMoney(doc.gst);
+  doc.subtotal = subtotal;
+  doc.gst = gst;
+  doc.totalAmount = roundMoney(subtotal + gst);
+}
 
-    quotationNumber: { type: String, trim: true, index: true },
-
-    items: [
-      {
-        description: { type: String, trim: true, required: true },
-        quantity: { type: Number, required: true, min: 0 },
-        rate: { type: Number, required: true, min: 0 },
-        amount: { type: Number, required: true, min: 0 },
-      },
-    ],
-
-    subtotal: { type: Number, default: 0, min: 0 },
-    gst: { type: Number, default: 0, min: 0 },
-    totalAmount: { type: Number, default: 0, min: 0 },
-
-    status: {
-      type: String,
-      enum: ["Draft", "Sent", "Approved", "Rejected"],
-      default: "Draft",
-      index: true,
-    },
-
-    validTill: { type: Date, index: true },
+const Quotation = createRepository({
+  table: "quotations",
+  fieldMap: {
+    id: "_id",
+    lead_id: "leadId",
+    quotation_number: "quotationNumber",
+    subtotal: "subtotal",
+    gst: "gst",
+    total_amount: "totalAmount",
+    status: "status",
+    valid_till: "validTill",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {
+    leadId: {
+      table: "leads",
+      rowMap: {
+        id: "_id",
+        contact_person: "contactPerson",
+        company_name: "companyName",
+        email: "email",
+        status: "status",
+        owner: "owner",
+      },
+    },
+  },
+  joinConfigs: {
+    items: {
+      apiName: "items",
+      table: "quotation_items",
+      fkColumn: "quotation_id",
+      cardinality: "1:N",
+      positionField: "position",
+      rowMap: {
+        id: "_id",
+        description: "description",
+        quantity: "quantity",
+        rate: "rate",
+        amount: "amount",
+        created_at: "createdAt",
+        position: "position",
+      },
+    },
+  },
+  joins: [
+    {
+      apiName: "items",
+      table: "quotation_items",
+      fkColumn: "quotation_id",
+      cardinality: "1:N",
+      orderBy: { position: 1 },
+      rowMap: {
+        id: "_id",
+        description: "description",
+        quantity: "quantity",
+        rate: "rate",
+        amount: "amount",
+        created_at: "createdAt",
+      },
+    },
+  ],
+  beforeSave: enforceTotalIntegrity,
+});
 
-// Common query patterns:
-// - list by status, newest first
-// - list by lead, newest first
-quotationSchema.index({ status: 1, createdAt: -1 });
-quotationSchema.index({ leadId: 1, createdAt: -1 });
-
-module.exports = mongoose.model("Quotation", quotationSchema);
+module.exports = Quotation;

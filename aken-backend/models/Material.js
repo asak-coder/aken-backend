@@ -1,30 +1,32 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the materials table (was: Mongoose Material model).
+const { createRepository } = require("./createRepository");
 
-const materialSchema = new mongoose.Schema(
-  {
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: true,
-      index: true,
-    },
-
-    materialName: { type: String, trim: true, required: true, index: true },
-
-    plannedQty: { type: Number, default: 0, min: 0 },
-    orderedQty: { type: Number, default: 0, min: 0 },
-    receivedQty: { type: Number, default: 0, min: 0 },
-    usedQty: { type: Number, default: 0, min: 0 },
-
-    rate: { type: Number, default: 0, min: 0 },
+const Material = createRepository({
+  table: "materials",
+  fieldMap: {
+    id: "_id",
+    project_id: "projectId",
+    material_name: "materialName",
+    planned_qty: "plannedQty",
+    ordered_qty: "orderedQty",
+    received_qty: "receivedQty",
+    used_qty: "usedQty",
+    rate: "rate",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {
+    projectId: {
+      table: "projects",
+      rowMap: {
+        id: "_id",
+        project_name: "projectName",
+        client_name: "clientName",
+        status: "status",
+      },
+    },
+  },
+  subTables: {},
+});
 
-// Common query patterns:
-// - list by project, newest first
-// - search by project + materialName
-materialSchema.index({ projectId: 1, createdAt: -1 });
-materialSchema.index({ projectId: 1, materialName: 1 });
-
-module.exports = mongoose.model("Material", materialSchema);
+module.exports = Material;

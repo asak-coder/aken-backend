@@ -1,4 +1,6 @@
-const mongoose = require("mongoose");
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const OBJECT_ID_REGEX = /^[0-9a-f]{24}$/i;
+
 const Lead = require("../models/Lead");
 const User = require("../models/User");
 
@@ -24,7 +26,9 @@ async function findSalesUserByHint(ownerHint) {
     return null;
   }
 
-  if (mongoose.Types.ObjectId.isValid(hint)) {
+  const isIdLike = OBJECT_ID_REGEX.test(hint) || UUID_V4_REGEX.test(hint);
+
+  if (isIdLike) {
     const byId = await User.findOne({
       _id: hint,
       role: "sales",

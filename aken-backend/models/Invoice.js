@@ -1,39 +1,32 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the invoices table (was: Mongoose Invoice model).
+const { createRepository } = require("./createRepository");
 
-const invoiceSchema = new mongoose.Schema(
-  {
+const Invoice = createRepository({
+  table: "invoices",
+  fieldMap: {
+    id: "_id",
+    project_id: "projectId",
+    invoice_number: "invoiceNumber",
+    amount: "amount",
+    paid_amount: "paidAmount",
+    due_date: "dueDate",
+    status: "status",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
+  },
+  relations: {
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: true,
-      index: true,
-    },
-
-    invoiceNumber: { type: String, trim: true, index: true },
-    amount: { type: Number, required: true, min: 0 },
-
-    paidAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-
-    dueDate: { type: Date, index: true },
-
-    status: {
-      type: String,
-      enum: ["Pending", "Partially Paid", "Paid"],
-      default: "Pending",
-      index: true,
+      table: "projects",
+      rowMap: {
+        id: "_id",
+        project_name: "projectName",
+        client_name: "clientName",
+        project_owner: "projectOwner",
+        status: "status",
+      },
     },
   },
-  { timestamps: true }
-);
+  subTables: {},
+});
 
-// Common query patterns:
-// - list invoices by project (newest first)
-// - list invoices by status (newest first)
-invoiceSchema.index({ projectId: 1, createdAt: -1 });
-invoiceSchema.index({ status: 1, createdAt: -1 });
-
-module.exports = mongoose.model("Invoice", invoiceSchema);
+module.exports = Invoice;

@@ -1,7 +1,8 @@
 const express = require("express");
-const mongoose = require("mongoose");
-
 const router = express.Router();
+
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const OBJECT_ID_REGEX = /^[0-9a-f]{24}$/i;
 
 const Lead = require("../models/Lead");
 const { requireAdminSession, requireRole } = require("../middleware/adminAuth");
@@ -14,6 +15,8 @@ const Invoice = require("../models/Invoice");
 const calculateMargin = require("../utils/marginCalculator");
 const { leadMutationLimiter } = require("../middleware/rateLimiters");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
+const { mapDuplicateKeyError } = require("../utils/duplicateKeyError");
+const { createProjectSafely } = require("../utils/projectConversion");
 
 const PROJECT_STATUS_VALUES = ["Planning", "In Progress", "Completed"];
 const SITE_STATUS_VALUES = [
@@ -79,7 +82,9 @@ function parsePositiveInteger(value, fallback, min, max) {
 }
 
 function isValidObjectId(value) {
-  return typeof value === "string" && mongoose.Types.ObjectId.isValid(value);
+  // Accept legacy ObjectId strings (24 hex) or PostgreSQL UUIDs (36 chars).
+  return typeof value === "string" &&
+    (OBJECT_ID_REGEX.test(value) || UUID_V4_REGEX.test(value));
 }
 
 function toPercentage(numerator, denominator) {
@@ -704,6 +709,20 @@ router.post(
     const project = await Project.create(payload);
     return sendSuccess(res, req, project, 201);
   } catch (error) {
+    const duplicate = mapDuplicateKeyError(error, "projects");
+    if (duplicate) {
+      // SQLSTATE 23505 on projects_lead_uq (Phase 2): a project already exists
+      // for this lead. Report it as a business conflict (never HTTP 500) so the
+      // client can tell the user to pick a different lead.
+      return sendError(res, req, {
+        statusCode: duplicate.statusCode,
+        code: duplicate.code,
+        message: duplicate.message,
+        flat: true,
+        err: error,
+      });
+    }
+
     return sendError(res, req, {
       statusCode: 500,
       code: "PROJECT_CREATE_FAILED",
@@ -747,6 +766,7 @@ router.post(
       });
     }
 
+    // Fast path: cheap already-exists check for the common (non-racing) case.
     const existingProject = await Project.findOne({ leadId: lead._id });
     if (existingProject) {
       return sendSuccess(res, req, {
@@ -755,23 +775,52 @@ router.post(
       });
     }
 
-    const project = await Project.create({
-      leadId: lead._id,
-      projectName: buildProjectNameFromLead(lead),
-      clientName: sanitizeText(lead.companyName || "Unknown Client", 180),
-      projectOwner: sanitizeText(lead.owner || "Unassigned", 80) || "Unassigned",
-      projectValue: parseMoney(lead.dealValue, 0),
-      status: "Planning",
-      siteStatus: "Not Started",
-      progressPercentage: 0,
-      startDate: new Date(),
+    // Concurrency-safe insert (F3): if a concurrent request committed first,
+    // SQLSTATE 23505 is mapped back to the established alreadyExists response.
+    const result = await createProjectSafely({
+      payload: {
+        leadId: lead._id,
+        projectName: buildProjectNameFromLead(lead),
+        clientName: sanitizeText(lead.companyName || "Unknown Client", 180),
+        projectOwner: sanitizeText(lead.owner || "Unassigned", 80) || "Unassigned",
+        projectValue: parseMoney(lead.dealValue, 0),
+        status: "Planning",
+        siteStatus: "Not Started",
+        progressPercentage: 0,
+        startDate: new Date(),
+      },
+      findExisting: () => Project.findOne({ leadId: lead._id }),
     });
 
+    if (result.duplicateConflict) {
+      // Unique conflict but the winning row was not (yet) observable. Keep the
+      // race out of the 500 path with the same flat 409 envelope the generic
+      // project endpoints use (DUPLICATE_PROJECT_FOR_LEAD).
+      return sendError(res, req, {
+        statusCode: 409,
+        code: "DUPLICATE_PROJECT_FOR_LEAD",
+        message: "A project already exists for this lead.",
+        flat: true,
+        err: result.error,
+      });
+    }
+
     return sendSuccess(res, req, {
-      alreadyExists: false,
-      project,
-    }, 201);
+      alreadyExists: result.alreadyExists,
+      project: result.project,
+    }, result.alreadyExists ? 200 : 201);
   } catch (error) {
+    const duplicate = mapDuplicateKeyError(error, "projects");
+    if (duplicate) {
+      return sendError(res, req, {
+        statusCode: duplicate.statusCode,
+        code: duplicate.code,
+        message: duplicate.message,
+        flat: true,
+        err: error,
+      });
+    }
+
     return sendError(res, req, {
       statusCode: 500,
       code: "PROJECT_LEAD_CONVERT_FAILED",
@@ -823,6 +872,21 @@ router.put(
 
     return sendSuccess(res, req, project);
   } catch (error) {
+    const duplicate = mapDuplicateKeyError(error, "projects");
+    if (duplicate) {
+      // SQLSTATE 23505 on projects_lead_uq (Phase 2): the update would point a
+      // project at a lead that already has one. Report it as a business
+      // conflict (never HTTP 500) so the client can tell the user to pick a
+      // different lead.
+      return sendError(res, req, {
+        statusCode: duplicate.statusCode,
+        code: duplicate.code,
+        message: duplicate.message,
+        flat: true,
+        err: error,
+      });
+    }
+
     return sendError(res, req, {
       statusCode: 500,
       code: "PROJECT_UPDATE_FAILED",

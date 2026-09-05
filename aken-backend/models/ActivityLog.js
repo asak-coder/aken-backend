@@ -1,12 +1,17 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the activity_logs table (was: Mongoose ActivityLog model).
+const { createRepository } = require("./createRepository");
 
-const activitySchema = new mongoose.Schema(
-  {
-    leadId: { type: mongoose.Schema.Types.ObjectId, ref: "Lead", required: true, index: true },
-    action: { type: String, required: true, trim: true },
-    performedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true, index: true },
+const ActivityLog = createRepository({
+  table: "activity_logs",
+  fieldMap: {
+    id: "_id",
+    lead_id: "leadId",
+    action: "action",
+    performed_by: "performedBy",
+    created_at: "createdAt",
   },
-  { timestamps: true }
-);
+  relations: {},
+  subTables: {},
+});
 
-module.exports = mongoose.model("ActivityLog", activitySchema);
+module.exports = ActivityLog;

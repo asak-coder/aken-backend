@@ -1,4 +1,10 @@
+"use strict";
+
 const { sendError } = require("../utils/apiResponse");
+const {
+  computeQuotationTotals,
+  MAX_ITEM_AMOUNT,
+} = require("../utils/quotationTotals");
 
 function toStringOrEmpty(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -13,9 +19,13 @@ function toNumberOrNull(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+const UUID_V4_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const OBJECT_ID_REGEX = /^[0-9a-f]{24}$/i;
+
 function isValidObjectIdLike(value) {
-  // Accept mongoose ObjectId string (24 hex chars). We avoid importing mongoose here.
-  return typeof value === "string" && /^[a-fA-F0-9]{24}$/.test(value);
+  // Accept legacy ObjectId strings (24 hex) or PostgreSQL UUIDs (36 chars).
+  return typeof value === "string" &&
+    (OBJECT_ID_REGEX.test(value) || UUID_V4_REGEX.test(value));
 }
 
 function quotationValidation(req, res, next) {
@@ -118,7 +128,7 @@ function quotationValidation(req, res, next) {
 
     const computedAmount = Number((quantity * rate).toFixed(2));
     const finalAmount =
-      amount !== null && amount >= 0 ? Math.min(amount, 9_999_999_999) : computedAmount;
+      amount !== null && amount >= 0 ? Math.min(amount, MAX_ITEM_AMOUNT) : computedAmount;
 
     sanitizedItems.push({
       description,
@@ -128,36 +138,34 @@ function quotationValidation(req, res, next) {
     });
   }
 
-  // Always compute subtotal on backend to avoid tampering.
-  const subtotal = sanitizedItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-
+  // NOTE (F1 fix): `body.totalAmount` is deliberately NEVER read here.
+  // The client cannot influence the stored total. `subtotal`, `gst` and
+  // `totalAmount` are derived server-side by computeQuotationTotals, which
+  // guarantees `totalAmount = subtotal + gst` — satisfying the Phase 2
+  // CHECK constraint `quotations_total_integrity`.
   const gstRate = toNumberOrNull(body.gstRate);
   const gst = toNumberOrNull(body.gst);
-  const totalAmount = toNumberOrNull(body.totalAmount);
 
-  const normalizedGstRate =
-    gstRate === null ? 18 : Math.min(28, Math.max(0, gstRate)); // default 18%, cap 28%
-
-  const computedGst = Number(((subtotal * normalizedGstRate) / 100).toFixed(2));
-  const finalGst = gst !== null && gst >= 0 ? Math.min(gst, 9_999_999_999) : computedGst;
-
-  const computedTotal = Number((subtotal + finalGst).toFixed(2));
-  const finalTotal =
-    totalAmount !== null && totalAmount >= 0
-      ? Math.min(totalAmount, 9_999_999_999)
-      : computedTotal;
+  const totals = computeQuotationTotals({
+    items: sanitizedItems,
+    gstRate,
+    gst,
+  });
 
   // Replace req.body with sanitized/normalized fields to keep DB clean.
+  // `totalAmount` is spread from `body` for compatibility when present, then
+  // ALWAYS overwritten with the server-computed value below. Order matters:
+  // later keys win.
   req.body = {
     ...body,
     quotationNumber,
     clientEmail: clientEmail || undefined,
     leadId: body.leadId ? String(body.leadId) : undefined,
     items: sanitizedItems,
-    subtotal,
-    gstRate: normalizedGstRate,
-    gst: finalGst,
-    totalAmount: finalTotal,
+    subtotal: totals.subtotal,
+    gstRate: totals.gstRate,
+    gst: totals.gst,
+    totalAmount: totals.totalAmount,
   };
 
   return next();

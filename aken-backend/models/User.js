@@ -15,6 +15,9 @@ const User = createRepository({
     created_at: "createdAt",
     updated_at: "updatedAt",
   },
+  // Mirrors Mongoose `passwordHash: { select: false }`: excluded from all
+  // default queries; only returned via explicit `.select("+passwordHash")`.
+  hiddenFields: ["password_hash"],
   relations: {},
   subTables: {},
 });

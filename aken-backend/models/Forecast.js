@@ -1,19 +1,19 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the forecasts table (was: Mongoose Forecast model).
+const { createRepository } = require("./createRepository");
 
-const forecastSchema = new mongoose.Schema(
-  {
-    // Store as YYYY-MM to keep sorting/filtering simple
-    month: { type: String, trim: true, required: true, index: true },
-    projectedRevenue: { type: Number, default: 0, min: 0 },
-    confirmedRevenue: { type: Number, default: 0, min: 0 },
-    cashInflow: { type: Number, default: 0, min: 0 },
+const Forecast = createRepository({
+  table: "forecasts",
+  fieldMap: {
+    id: "_id",
+    month: "month",
+    projected_revenue: "projectedRevenue",
+    confirmed_revenue: "confirmedRevenue",
+    cash_inflow: "cashInflow",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {},
+  subTables: {},
+});
 
-// Common query patterns:
-// - list newest forecasts
-// - find by month
-forecastSchema.index({ month: 1 }, { unique: true });
-
-module.exports = mongoose.model("Forecast", forecastSchema);
+module.exports = Forecast;

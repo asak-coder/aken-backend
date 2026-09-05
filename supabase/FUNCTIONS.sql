@@ -372,6 +372,178 @@ as $$
 $$;
 
 -- ----------------------------------------------------------------------------
+-- 9. Notification sub-table UPSERTs (B2: atomic one-row-per-lead writes)
+-- ----------------------------------------------------------------------------
+-- PostgREST's native .upsert() cannot express
+--   attempt_count = attempt_count + excluded.attempt_count,
+-- so the incremental fields are applied inside the database. Each function
+-- executes a single atomic INSERT ... ON CONFLICT (lead_id) DO UPDATE, so two
+-- concurrent workers can never both observe "no row" and double-INSERT (the
+-- old SELECT -> INSERT repository path raced here and surfaced SQLSTATE 23505
+-- as HTTP 500).
+--
+-- Semantics (encoded per-column with p_has_<column> flags):
+--   * <column> omitted (p_has_<column> = false)  -> preserved on conflict
+--   * <column> supplied (p_has_<column> = true)  -> overwritten (NULL clears)
+--   * attempt_count is INCREMENTED by p_attempt_count_delta (0..n); the
+--     statement row-locks the conflicting row so concurrent deltas accumulate.
+--   * updated_at is always refreshed.
+-- Each function returns 1 (row written) so the repository can detect a
+-- zero-row write defensively.
+create or replace function public.upsert_lead_email_notification(
+  p_lead_id uuid,
+  p_admin_notified_at timestamptz default null,
+  p_has_admin_notified_at boolean default false,
+  p_client_acknowledged_at timestamptz default null,
+  p_has_client_acknowledged_at boolean default false,
+  p_last_attempt_at timestamptz default null,
+  p_has_last_attempt_at boolean default false,
+  p_attempt_count_delta int default 0,
+  p_last_error text default null,
+  p_has_last_error boolean default false,
+  p_last_error_details jsonb default null,
+  p_has_last_error_details boolean default false
+)
+returns int
+language plpgsql
+volatile
+as $$
+declare
+  v_updated int;
+begin
+  insert into public.lead_email_notifications (
+    lead_id,
+    admin_notified_at,
+    client_acknowledged_at,
+    last_attempt_at,
+    attempt_count,
+    last_error,
+    last_error_details,
+    updated_at
+  )
+  values (
+    p_lead_id,
+    case when p_has_admin_notified_at then p_admin_notified_at else null end,
+    case when p_has_client_acknowledged_at then p_client_acknowledged_at else null end,
+    case when p_has_last_attempt_at then p_last_attempt_at else null end,
+    greatest(p_attempt_count_delta, 0),
+    case when p_has_last_error then p_last_error else null end,
+    case when p_has_last_error_details then p_last_error_details else null end,
+    now()
+  )
+  on conflict (lead_id) do update set
+    admin_notified_at = case
+      when p_has_admin_notified_at then excluded.admin_notified_at
+      else lead_email_notifications.admin_notified_at
+    end,
+    client_acknowledged_at = case
+      when p_has_client_acknowledged_at then excluded.client_acknowledged_at
+      else lead_email_notifications.client_acknowledged_at
+    end,
+    last_attempt_at = case
+      when p_has_last_attempt_at then excluded.last_attempt_at
+      else lead_email_notifications.last_attempt_at
+    end,
+    attempt_count = lead_email_notifications.attempt_count + greatest(p_attempt_count_delta, 0),
+    last_error = case
+      when p_has_last_error then excluded.last_error
+      else lead_email_notifications.last_error
+    end,
+    last_error_details = case
+      when p_has_last_error_details then excluded.last_error_details
+      else lead_email_notifications.last_error_details
+    end,
+    updated_at = now()
+  returning 1 into v_updated;
+
+  return coalesce(v_updated, 0);
+end;
+$$;
+
+create or replace function public.upsert_lead_whatsapp_notification(
+  p_lead_id uuid,
+  p_admin_notified_at timestamptz default null,
+  p_has_admin_notified_at boolean default false,
+  p_client_acknowledged_at timestamptz default null,
+  p_has_client_acknowledged_at boolean default false,
+  p_last_attempt_at timestamptz default null,
+  p_has_last_attempt_at boolean default false,
+  p_attempt_count_delta int default 0,
+  p_last_error text default null,
+  p_has_last_error boolean default false,
+  p_last_error_details jsonb default null,
+  p_has_last_error_details boolean default false,
+  p_last_fallback_url text default null,
+  p_has_last_fallback_url boolean default false
+)
+returns int
+language plpgsql
+volatile
+as $$
+declare
+  v_updated int;
+begin
+  insert into public.lead_whatsapp_notifications (
+    lead_id,
+    admin_notified_at,
+    client_acknowledged_at,
+    last_attempt_at,
+    attempt_count,
+    last_error,
+    last_error_details,
+    last_fallback_url,
+    updated_at
+  )
+  values (
+    p_lead_id,
+    case when p_has_admin_notified_at then p_admin_notified_at else null end,
+    case when p_has_client_acknowledged_at then p_client_acknowledged_at else null end,
+    case when p_has_last_attempt_at then p_last_attempt_at else null end,
+    greatest(p_attempt_count_delta, 0),
+    case when p_has_last_error then p_last_error else null end,
+    case when p_has_last_error_details then p_last_error_details else null end,
+    case when p_has_last_fallback_url then p_last_fallback_url else null end,
+    now()
+  )
+  on conflict (lead_id) do update set
+    admin_notified_at = case
+      when p_has_admin_notified_at then excluded.admin_notified_at
+      else lead_whatsapp_notifications.admin_notified_at
+    end,
+    client_acknowledged_at = case
+      when p_has_client_acknowledged_at then excluded.client_acknowledged_at
+      else lead_whatsapp_notifications.client_acknowledged_at
+    end,
+    last_attempt_at = case
+      when p_has_last_attempt_at then excluded.last_attempt_at
+      else lead_whatsapp_notifications.last_attempt_at
+    end,
+    attempt_count = lead_whatsapp_notifications.attempt_count + greatest(p_attempt_count_delta, 0),
+    last_error = case
+      when p_has_last_error then excluded.last_error
+      else lead_whatsapp_notifications.last_error
+    end,
+    last_error_details = case
+      when p_has_last_error_details then excluded.last_error_details
+      else lead_whatsapp_notifications.last_error_details
+    end,
+    last_fallback_url = case
+      when p_has_last_fallback_url then excluded.last_fallback_url
+      else lead_whatsapp_notifications.last_fallback_url
+    end,
+    updated_at = now()
+  returning 1 into v_updated;
+
+  return coalesce(v_updated, 0);
+end;
+$$;
+
+revoke all on function public.upsert_lead_email_notification(uuid, timestamptz, boolean, timestamptz, boolean, timestamptz, boolean, int, text, boolean, jsonb, boolean) from public;
+revoke all on function public.upsert_lead_whatsapp_notification(uuid, timestamptz, boolean, timestamptz, boolean, timestamptz, boolean, int, text, boolean, jsonb, boolean, text, boolean) from public;
+grant execute on function public.upsert_lead_email_notification(uuid, timestamptz, boolean, timestamptz, boolean, timestamptz, boolean, int, text, boolean, jsonb, boolean) to service_role;
+grant execute on function public.upsert_lead_whatsapp_notification(uuid, timestamptz, boolean, timestamptz, boolean, timestamptz, boolean, int, text, boolean, jsonb, boolean, text, boolean) to service_role;
+
+-- ----------------------------------------------------------------------------
 -- Grants: service_role only
 -- ----------------------------------------------------------------------------
 revoke all on function public.lead_analytics_summary(int, int, int) from public;

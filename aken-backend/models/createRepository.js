@@ -32,7 +32,13 @@
  * range semantics are correct.
  */
 
-const { getSupabaseClient } = require("../utils/supabaseClient");
+// Resolve the client lazily through the live module object so tests can
+// mock `supabaseClient.getSupabaseClient` and every call site sees the mock.
+const supabaseClientModule = require("../utils/supabaseClient");
+
+function getSupabaseClient() {
+  return supabaseClientModule.getSupabaseClient();
+}
 
 class RepositoryError extends Error {
   constructor(message, options = {}) {
@@ -186,6 +192,9 @@ function toFilterOps(filter, fieldMap) {
         let pattern = String(value || "");
         pattern = pattern.replace(/^\^/, "").replace(/\$$/, "");
         ops.push({ type: "ilike", column, value: pattern });
+      } else if (op === "$options") {
+        // Mongo regex flags (e.g. "i"). Supabase `.ilike()` is already
+        // case-insensitive, so the flag is a no-op here.
       } else if (op === "$exists") {
         // no-op for row stores
       } else {
@@ -308,15 +317,19 @@ function createQuery(modelRepo, single, positionalFilter) {
   }
 
   function buildBaseQuery() {
-    let query = getSupabaseClient().from(modelRepo.table);
+    // postgrest-js v2 lifecycle: `from(table)` returns a PostgrestQueryBuilder
+    // which exposes NO filter methods (.eq/.in/.ilike/.order/.limit/.range)
+    // and is NOT awaitable. The PostgREST filter builder is only created by
+    // calling .select() first, so projection columns must be resolved BEFORE
+    // select and every filter/sort/pagination call must follow it.
+    const columns = projectionColumns();
+
+    let query = getSupabaseClient()
+      .from(modelRepo.table)
+      .select(columns ? columns.join(",") : "*");
 
     const ops = buildFilterOpsByFilterList(state.filters, modelRepo.apiToColumn);
     query = applyFilterOps(query, ops);
-
-    const columns = projectionColumns();
-    if (columns) {
-      query = query.select(columns.join(","));
-    }
 
     if (state.sort) {
       for (const [key, direction] of Object.entries(state.sort)) {
@@ -567,60 +580,118 @@ async function callRpc(rpcName, args) {
 }
 
 async function executeAggregate(modelRepo, pipeline) {
-  const mode = modelRepo.aggregateMode;
-  if (!mode) {
-    throw new RepositoryError(`No aggregate handler for ${modelRepo.table}`, {
-      code: "DB_AGGREGATE_UNSUPPORTED",
-    });
-  }
+  const firstStage = pipeline?.[0] || {};
+  const facet = firstStage.$facet;
 
-  switch (mode) {
-    case "leadAnalytics": {
-      const months = monthsFromDate(extractFacetMatchDate(pipeline, "monthlyTrend"));
-      const sourceLimit = extractFacetLimit(pipeline, "sourceDistribution") || 8;
-      const ownerLimit = extractFacetLimit(pipeline, "ownerDistribution") || 8;
-      return [await callRpc("lead_analytics_summary", {
-        p_months: months,
-        p_source_limit: sourceLimit,
-        p_owner_limit: ownerLimit,
-      })];
+  // revenue/overview faceted aggregates carry "totals" + "monthly"
+  // lead analytics carries "overview" + "statusDistribution" + "monthlyTrend"
+  const daysOffsetFromMatch = (facetKey, fallbackKey) => {
+    const keys = Array.isArray(facetKey) ? facetKey : [facetKey];
+    let value = null;
+    for (const key of [...keys, fallbackKey]) {
+      value = extractFacetMatchDate(pipeline, key);
+      if (value) break;
     }
-    case "revenueLead": {
-      const months = monthsFromDate(extractFacetMatchDate(pipeline, "monthly"));
+    return monthsFromDate(value);
+  };
+
+  if (facet) {
+    const facetKeys = Object.keys(facet);
+
+    if (modelRepo.table === "leads") {
+      if (facetKeys.includes("overview")) {
+        // GET /api/leads/analytics/summary
+        const months = daysOffsetFromMatch("monthlyTrend", "monthlyTrend");
+        const sourceLimit = extractFacetLimit(pipeline, "sourceDistribution") || 8;
+        const ownerLimit = extractFacetLimit(pipeline, "ownerDistribution") || 8;
+        return [await callRpc("lead_analytics_summary", {
+          p_months: months,
+          p_source_limit: sourceLimit,
+          p_owner_limit: ownerLimit,
+        })];
+      }
+      // GET /api/revenue/overview -> lead facet
+      const months = daysOffsetFromMatch("monthly", "monthly");
       const sourceLimit = extractFacetLimit(pipeline, "sourceDistribution") || 8;
       return [await callRpc("revenue_lead_facet", {
         p_months: months,
         p_source_limit: sourceLimit,
       })];
     }
-    case "revenueQuotation": {
-      const months = monthsFromDate(extractFacetMatchDate(pipeline, "monthly"));
+
+    if (modelRepo.table === "quotations") {
+      const months = daysOffsetFromMatch("monthly", "monthly");
       return [await callRpc("revenue_quotation_facet", { p_months: months })];
     }
-    case "revenueProject": {
-      const months = monthsFromDate(extractFacetMatchDate(pipeline, "monthly"));
+
+    if (modelRepo.table === "projects") {
+      const months = daysOffsetFromMatch("monthly", "monthly");
       return [await callRpc("revenue_project_facet", { p_months: months })];
     }
-    case "revenueInvoice": {
-      const months = monthsFromDate(extractFacetMatchDate(pipeline, "monthly"));
+
+    if (modelRepo.table === "invoices") {
+      const months = daysOffsetFromMatch("monthly", "monthly");
       return [await callRpc("revenue_invoice_facet", { p_months: months })];
     }
-    case "projectSummary":
-      return [await callRpc("project_summary", {})];
-    case "invoiceTotals":
-      return [await callRpc("invoice_totals", {})];
-    default:
-      throw new RepositoryError(`Unknown aggregate mode: ${mode}`, {
-        code: "DB_AGGREGATE_UNSUPPORTED",
-      });
   }
+
+  // Non-faceted $group pipelines (project summary, invoice totals).
+  // NOTE: ownerAssignment.js's leads pipeline puts $match FIRST:
+  //   [{ $match: { ownerId: { $in }, status: { $ne } } }, { $group: ... }]
+  // so the $group is never on firstStage. That pipeline must still be
+  // dispatched to the in-memory owner count below — otherwise lead creation
+  // with automatic owner assignment throws DB_AGGREGATE_UNSUPPORTED.
+  const isInMemoryLeadGroupPipeline =
+    modelRepo.table === "leads" && firstStage.$match && !facet;
+  if (firstStage.$group || isInMemoryLeadGroupPipeline) {
+    if (modelRepo.table === "projects") {
+      return [await callRpc("project_summary", {})];
+    }
+    if (modelRepo.table === "invoices") {
+      return [await callRpc("invoice_totals", {})];
+    }
+
+    // ownerAssignment.js: Lead.aggregate([{ $match: { ownerId: { $in }, status: { $ne } } }, { $group: { _id: "$ownerId", count: { $sum: 1 } } }])
+    if (modelRepo.table === "leads" && firstStage.$match) {
+      const matchOps = toFilterOps(firstStage.$match, modelRepo.apiToColumn);
+      let query = getSupabaseClient().from(modelRepo.table).select("owner_id,status");
+      query = applyFilterOps(query, matchOps);
+
+      const { data, error } = await query;
+      if (error) {
+        throw new RepositoryError(`Aggregate match on leads failed: ${error.message}`, {
+          code: error.code || "DB_AGGREGATE_FAILED",
+        });
+      }
+
+      const counts = new Map();
+      for (const row of data || []) {
+        if (!row.owner_id) continue;
+        const key = String(row.owner_id);
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+
+      return [...counts.entries()].map(([id, count]) => ({ _id: id, count }));
+    }
+  }
+
+  throw new RepositoryError(
+    `No aggregate handler for ${modelRepo.table}`,
+    { code: "DB_AGGREGATE_UNSUPPORTED" },
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Count
 // ---------------------------------------------------------------------------
+// NOTE: named "countDocumentsForRepo" — NOT "countDocuments". The static
+// `Model.countDocuments` below is a named function expression whose own name
+// shadows any module-level `countDocuments` identifier, which previously made
+// the static recurse into itself (RangeError: Maximum call stack size
+// exceeded). The count itself uses PostgREST's HEAD+exact-count request,
+// which returns the row count without transferring row bodies.
 
-async function countDocuments(modelRepo, filter) {
+async function countDocumentsForRepo(modelRepo, filter) {
   let query = getSupabaseClient()
     .from(modelRepo.table)
     .select("*", { count: "exact", head: true });
@@ -655,6 +726,70 @@ async function fetchSubRow(table, fkColumn, fkValue) {
   return (data || [])[0] || null;
 }
 
+// ---------------------------------------------------------------------------
+// Atomic sub-table UPSERT (B2)
+// ---------------------------------------------------------------------------
+// PostgREST's native .upsert() cannot express `attempt_count + 1` (a plain
+// value overwrites instead of increments), so sub-tables that need atomic
+// increment/merge semantics declare an `upsertRpc` — a server-side
+// INSERT ... ON CONFLICT (pk) DO UPDATE function. Writing through the RPC is
+// ONE round trip with NO preceding SELECT, so two concurrent workers can no
+// longer both observe "no row" and race a duplicate INSERT (SQLSTATE 23505).
+//
+// Merge semantics are encoded with per-column `p_has_<column>` flags:
+//   * flag false -> column preserved on conflict (and inserted as NULL)
+//   * flag true  -> column overwritten on conflict (NULL clears)
+//   * $inc on the declared `incrementColumn` -> `p_<column>_delta`; on
+//     conflict the statement row-locks the row so concurrent deltas merge.
+//   * $inc on any other column is rejected (no caller does this).
+
+function buildUpsertRpcArgs(subConfig, fkColumn, fkValue, setColumns, incColumns) {
+  const setEntries = setColumns || {};
+  const incEntries = incColumns || {};
+  const incrementColumn = subConfig.incrementColumn || "attempt_count";
+
+  if (Object.prototype.hasOwnProperty.call(setEntries, incrementColumn)) {
+    throw new RepositoryError(
+      `Direct $set of ${incrementColumn} on ${subConfig.table} is not supported; use $inc.`,
+      { code: "DB_INCREMENT_UNSUPPORTED" },
+    );
+  }
+
+  const args = { [`p_${fkColumn}`]: fkValue };
+
+  for (const [column] of Object.entries(subConfig.rowMap)) {
+    if (column === incrementColumn) continue;
+    const has = Object.prototype.hasOwnProperty.call(setEntries, column);
+    args[`p_has_${column}`] = has;
+    args[`p_${column}`] = has ? setEntries[column] : null;
+  }
+
+  const hasDelta = Object.prototype.hasOwnProperty.call(incEntries, incrementColumn);
+  args[`p_${incrementColumn}_delta`] = hasDelta ? toNumber(incEntries[incrementColumn]) : 0;
+
+  const unknownInc = Object.keys(incEntries).filter((column) => column !== incrementColumn);
+  if (unknownInc.length > 0) {
+    throw new RepositoryError(
+      `Cannot $inc non-increment column(s) on ${subConfig.table}: ${unknownInc.join(", ")}`,
+      { code: "DB_INCREMENT_UNSUPPORTED" },
+    );
+  }
+
+  return args;
+}
+
+async function callUpsertRpc(rpcName, args) {
+  const { error } = await getSupabaseClient().rpc(rpcName, args);
+  if (error) {
+    // The RPC is a single INSERT ... ON CONFLICT statement, so it never
+    // raises SQLSTATE 23505. Surface every other failure with context.
+    throw new RepositoryError(`Upsert RPC ${rpcName} failed: ${error.message}`, {
+      code: error.code || "DB_UPSERT_FAILED",
+      dbTable: rpcName,
+    });
+  }
+}
+
 async function resolveSubTableOps(modelRepo, update) {
   const ops = { set: {}, inc: {} };
 
@@ -665,10 +800,21 @@ async function resolveSubTableOps(modelRepo, update) {
       const [apiPrefix, field] = dottedPath.split(".");
       const subConfig = modelRepo.subTables[apiPrefix];
       if (!subConfig) continue;
-      const column = subConfig.rowMap[field] || field;
+
+      // rowMap is stored column -> apiName; invert once per config.
+      let apiToColumn = subConfig._apiToColumn;
+      if (!apiToColumn) {
+        apiToColumn = {};
+        for (const [column, apiName] of Object.entries(subConfig.rowMap)) {
+          apiToColumn[apiName] = column;
+        }
+        subConfig._apiToColumn = apiToColumn;
+      }
+
+      const column = apiToColumn[field] || field;
       if (operator === "$set") {
         ops.set[apiPrefix] = ops.set[apiPrefix] || {};
-        ops.set[apiPrefix][column] = value;
+        ops.set[apiPrefix][column] = value === undefined ? null : value;
       } else {
         ops.inc[apiPrefix] = ops.inc[apiPrefix] || {};
         ops.inc[apiPrefix][column] = toNumber(value);
@@ -688,13 +834,29 @@ async function applySubTableUpdates(modelRepo, filterValue, subOps) {
     if (!filterValue) continue;
 
     const fkColumn = Object.keys(subConfig.fkMap)[0];
+
+    // B2: atomic RPC upsert (one statement, no SELECT) for tables that
+    // declare an `upsertRpc` (lead_email_notifications / lead_whatsapp_notifications).
+    if (subConfig.upsertRpc) {
+      const args = buildUpsertRpcArgs(
+        subConfig,
+        fkColumn,
+        filterValue,
+        subOps.set[apiPrefix] || {},
+        subOps.inc[apiPrefix] || {},
+      );
+      await callUpsertRpc(subConfig.upsertRpc, args);
+      continue;
+    }
+
+    // Legacy path for sub-tables without an upsert RPC.
     const existing = await fetchSubRow(subConfig.table, fkColumn, filterValue);
 
     const currentValues = existing || {};
     const patch = {};
 
     for (const [column, value] of Object.entries(subOps.set[apiPrefix] || {})) {
-      patch[column] = value === undefined ? null : value;
+      patch[column] = value;
     }
 
     for (const [column, amount] of Object.entries(subOps.inc[apiPrefix] || {})) {
@@ -751,6 +913,9 @@ async function runUpdateOperation(modelRepo, filter, update) {
     if (error) {
       throw new RepositoryError(`Update ${modelRepo.table} failed: ${error.message}`, {
         code: error.code || "DB_UPDATE_FAILED",
+        dbTable: modelRepo.table,
+        constraint: error.constraint,
+        details: error.details,
       });
     }
   }
@@ -793,6 +958,9 @@ async function saveDocument(modelRepo, doc, options = {}) {
     if (error) {
       throw new RepositoryError(`Insert ${modelRepo.table} failed: ${error.message}`, {
         code: error.code || "DB_INSERT_FAILED",
+        dbTable: modelRepo.table,
+        constraint: error.constraint,
+        details: error.details,
       });
     }
 
@@ -827,6 +995,9 @@ async function saveDocument(modelRepo, doc, options = {}) {
     if (error) {
       throw new RepositoryError(`Save ${modelRepo.table} failed: ${error.message}`, {
         code: error.code || "DB_SAVE_FAILED",
+        dbTable: modelRepo.table,
+        constraint: error.constraint,
+        details: error.details,
       });
     }
   }
@@ -841,6 +1012,12 @@ async function persistChildren(modelRepo, doc) {
     if (join.cardinality !== "array" && join.cardinality !== "1:N") continue;
     const children = Array.isArray(doc[join.apiName]) ? doc[join.apiName] : [];
     if (!doc._id) continue;
+
+    children.forEach((child, index) => {
+      if (join.positionField && child._id === undefined) {
+        child[join.positionField] = index;
+      }
+    });
 
     for (const child of children) {
       if (child._id) continue; // already persisted
@@ -870,7 +1047,13 @@ async function persistChildren(modelRepo, doc) {
     if (!doc._id) continue;
 
     const patch = {};
+    const incrementColumn = subConfig.incrementColumn || "attempt_count";
     for (const [column, apiField] of Object.entries(subConfig.rowMap)) {
+      // B2: save() never writes the increment column — retry counters are
+      // owned by the $inc path. The hydrated notification defaults object
+      // carries attemptCount: 0, which must not clobber or trip the RPC's
+      // $set-of-increment guard.
+      if (column === incrementColumn) continue;
       if (subDoc[apiField] !== undefined) {
         patch[column] = subDoc[apiField];
       }
@@ -878,6 +1061,16 @@ async function persistChildren(modelRepo, doc) {
     if (Object.keys(patch).length === 0) continue;
 
     const fkColumn = Object.keys(subConfig.fkMap)[0];
+
+    // B2: same atomic RPC upsert as the $set/$inc path — one statement, no
+    // SELECT, so a save() racing another writer can never double-INSERT.
+    // save() never increments; pass the plain patch as the set columns.
+    if (subConfig.upsertRpc) {
+      const args = buildUpsertRpcArgs(subConfig, fkColumn, doc._id, patch, {});
+      await callUpsertRpc(subConfig.upsertRpc, args);
+      continue;
+    }
+
     const existing = await fetchSubRow(subConfig.table, fkColumn, doc._id);
     if (existing) {
       const { error } = await getSupabaseClient()
@@ -1007,7 +1200,7 @@ function createRepository(config) {
   };
 
   Model.countDocuments = function countDocuments(filter) {
-    return countDocuments(modelRepo, filter || {});
+    return countDocumentsForRepo(modelRepo, filter || {});
   };
 
   Model.aggregate = function aggregate(pipeline) {

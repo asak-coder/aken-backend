@@ -13,6 +13,8 @@ const sendEmail = require("../utils/sendEmail");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
 const { log } = require("../utils/requestLogger");
 const { quotationValidation } = require("../middleware/quotationValidation");
+const { mapDuplicateKeyError } = require("../utils/duplicateKeyError");
+const { createProjectSafely } = require("../utils/projectConversion");
 
 router.post(
   "/:id/convert",
@@ -31,6 +33,7 @@ router.post(
       });
     }
 
+    // Fast path: cheap already-exists check for the common (non-racing) case.
     const existingProject = await Project.findOne({ quotationId: quotation._id });
     if (existingProject) {
       return sendSuccess(res, req, {
@@ -43,29 +46,75 @@ router.post(
       ? await Lead.findById(quotation.leadId._id)
       : null;
 
-    const project = await Project.create({
-      quotationId: quotation._id,
-      leadId: lead?._id || null,
-      projectName: `Project - ${quotation.quotationNumber || quotation._id}`,
-      clientName:
-        quotation.leadId?.companyName || req.body?.clientName || "Unknown Client",
-      projectOwner: lead?.owner || "Unassigned",
-      projectValue: quotation.totalAmount || 0,
+    // Concurrency-safe insert (F3): if a concurrent request committed first
+    // (either this quotation, or the lead path /from-lead/:leadId for the same
+    // lead), SQLSTATE 23505 is mapped back to the established alreadyExists
+    // response. Re-read by quotationId first, then fall back to the lead's
+    // project so a cross-endpoint winner is returned, not an error.
+    const result = await createProjectSafely({
+      payload: {
+        quotationId: quotation._id,
+        leadId: lead?._id || null,
+        projectName: `Project - ${quotation.quotationNumber || quotation._id}`,
+        clientName:
+          quotation.leadId?.companyName || req.body?.clientName || "Unknown Client",
+        projectOwner: lead?.owner || "Unassigned",
+        projectValue: quotation.totalAmount || 0,
+      },
+      findExisting: async () => {
+        const byQuotation = await Project.findOne({ quotationId: quotation._id });
+        if (byQuotation) {
+          return byQuotation;
+        }
+
+        if (lead) {
+          return Project.findOne({ leadId: lead._id });
+        }
+
+        return null;
+      },
     });
 
-    quotation.status = "Approved";
-    await quotation.save({ validateBeforeSave: false });
+    if (result.duplicateConflict) {
+      // Unique conflict but the winning row was not (yet) observable. Keep the
+      // race out of the 500 path with a stable, documented duplicate response.
+      return sendError(res, req, {
+        statusCode: 409,
+        code: "DUPLICATE_PROJECT_FOR_LEAD",
+        message:
+          "A project for this lead already exists. Re-fetch the project list to see it.",
+        err: result.error,
+      });
+    }
 
-    if (lead && lead.status !== "Closed") {
-      lead.status = "Closed";
-      await lead.save();
+    // Winner-only side effects: the losing request must not re-write the
+    // quotation/lead rows (no audit churn, no lost updates on status).
+    if (!result.alreadyExists) {
+      quotation.status = "Approved";
+      await quotation.save({ validateBeforeSave: false });
+
+      if (lead && lead.status !== "Closed") {
+        lead.status = "Closed";
+        await lead.save();
+      }
     }
 
     return sendSuccess(res, req, {
-      alreadyExists: false,
-      project,
+      alreadyExists: result.alreadyExists,
+      project: result.project,
     });
   } catch (error) {
+    const duplicate = mapDuplicateKeyError(error, "quotations");
+    if (duplicate) {
+      return sendError(res, req, {
+        statusCode: duplicate.statusCode,
+        code: duplicate.code,
+        message: duplicate.message,
+        flat: true,
+        err: error,
+      });
+    }
+
     return sendError(res, req, {
       statusCode: 500,
       code: "QUOTATION_CONVERT_FAILED",
@@ -124,6 +173,17 @@ router.post(
 
     return sendSuccess(res, req, quotation, 201);
   } catch (error) {
+    const duplicate = mapDuplicateKeyError(error, "quotations");
+    if (duplicate) {
+      return sendError(res, req, {
+        statusCode: duplicate.statusCode,
+        code: duplicate.code,
+        message: duplicate.message,
+        flat: true,
+        err: error,
+      });
+    }
+
     return sendError(res, req, {
       statusCode: 500,
       code: "QUOTATION_CREATE_FAILED",

@@ -1,8 +1,7 @@
 const Lead = require("../models/Lead");
-const {
-  sendWhatsAppViaWebhook,
-  isWhatsAppConfigured,
-} = require("./whatsappWebhook");
+// Live module namespace (bypasses require-time destructure freezing) so
+// callers/tests can stub whatsappWebhook helpers through the module object.
+const whatsappWebhookModule = require("./whatsappWebhook");
 
 function normalizePhone(phone) {
   const digits = String(phone || "").replace(/\D/g, "");
@@ -68,7 +67,7 @@ async function sendWithRetry(payload, options = {}) {
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return await sendWhatsAppViaWebhook(payload);
+      return await whatsappWebhookModule.sendWhatsAppViaWebhook(payload);
     } catch (error) {
       lastError = error;
       if (attempt < maxAttempts) {
@@ -116,7 +115,7 @@ async function sendLeadWhatsAppNotifications(leadId) {
     $set: { "whatsappNotifications.lastAttemptAt": new Date() },
   });
 
-  if (!isWhatsAppConfigured()) {
+  if (!whatsappWebhookModule.isWhatsAppConfigured()) {
     await applyUpdate(leadId, {
       $set: {
         "whatsappNotifications.lastError":

@@ -7,6 +7,7 @@ function sendError(res, req, options = {}) {
   const details = options.details || null;
   const err = options.err || null;
   const context = options.context || {};
+  const flat = options.flat === true;
 
   if (err) {
     log("error", req, message, {
@@ -22,6 +23,23 @@ function sendError(res, req, options = {}) {
       statusCode,
       context,
     });
+  }
+
+  // Flat error envelope (business errors, e.g. duplicate unique values):
+  //   { success: false, code, message }
+  // Kept opt-in so the existing nested `error` envelope is unchanged.
+  if (flat) {
+    const flatPayload = {
+      success: false,
+      code,
+      message,
+    };
+
+    if (details) {
+      flatPayload.details = details;
+    }
+
+    return res.status(statusCode).json(flatPayload);
   }
 
   const payload = {

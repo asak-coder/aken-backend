@@ -1,4 +1,5 @@
 const { createClient } = require("@supabase/supabase-js");
+const WebSocket = require("ws");
 
 let cachedClient = null;
 let cachedKey = null;
@@ -31,6 +32,12 @@ function getSupabaseClient() {
       autoRefreshToken: false,
       persistSession: false,
       detectSessionInUrl: false,
+    },
+    // Node 18/20 lack a native WebSocket; the supabase-js Realtime client
+    // requires one at construction time. Wire the `ws` package as the
+    // transport so createClient() does not throw on older Node runtimes.
+    realtime: {
+      transport: WebSocket,
     },
     global: {
       headers: {

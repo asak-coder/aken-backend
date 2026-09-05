@@ -59,10 +59,19 @@ export async function POST(req: NextRequest) {
   const response = NextResponse.json({ success: true, ...data?.data });
   response.headers.set("Cache-Control", "no-store");
 
-  const setCookie = backendRes.headers.get("set-cookie");
-  if (setCookie) {
-    // Forward backend HttpOnly cookie to the browser.
-    response.headers.set("set-cookie", setCookie);
+  // Forward ALL Set-Cookie headers from backend (session cookie + CSRF cookie).
+  const anyHeaders = backendRes.headers as unknown as {
+    getSetCookie?: () => string[];
+  };
+  const setCookieHeaders =
+    typeof anyHeaders.getSetCookie === "function"
+      ? anyHeaders.getSetCookie()
+      : (() => {
+          const single = backendRes.headers.get("set-cookie");
+          return single ? [single] : [];
+        })();
+  for (const cookie of setCookieHeaders) {
+    if (cookie) response.headers.append("set-cookie", cookie);
   }
 
   return response;

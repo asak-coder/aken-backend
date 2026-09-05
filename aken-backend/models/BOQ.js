@@ -1,36 +1,21 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the boq_entries table (was: Mongoose BOQ model).
+const { createRepository } = require("./createRepository");
 
-const boqSchema = new mongoose.Schema(
-  {
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: true,
-      index: true,
-    },
-
-    description: { type: String, trim: true, required: true },
-
-    boqQty: { type: Number, required: true, min: 0 },
-    boqRate: { type: Number, required: true, min: 0 },
-
-    actualQty: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-
-    actualCost: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
+const BOQ = createRepository({
+  table: "boq_entries",
+  fieldMap: {
+    id: "_id",
+    project_id: "projectId",
+    description: "description",
+    boq_qty: "boqQty",
+    boq_rate: "boqRate",
+    actual_qty: "actualQty",
+    actual_cost: "actualCost",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {},
+  subTables: {},
+});
 
-// Common query patterns:
-// - list by project, newest first
-boqSchema.index({ projectId: 1, createdAt: -1 });
-
-module.exports = mongoose.model("BOQ", boqSchema);
+module.exports = BOQ;

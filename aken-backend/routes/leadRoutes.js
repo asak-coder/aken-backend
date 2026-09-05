@@ -18,12 +18,11 @@ const {
 const {
   resolveLeadOwnerAssignment,
 } = require("../utils/ownerAssignment");
-const {
-  sendLeadNotificationEmails,
-} = require("../utils/leadEmailNotifications");
-const {
-  sendLeadWhatsAppNotifications,
-} = require("../utils/leadWhatsAppNotifications");
+// Access notification workers through the module namespace (not a frozen
+// destructure) so tests can stub them and so the retry endpoints always call
+// the live export.
+const leadEmailNotifications = require("../utils/leadEmailNotifications");
+const leadWhatsAppNotifications = require("../utils/leadWhatsAppNotifications");
 const { sendError, sendSuccess } = require("../utils/apiResponse");
 const { log } = require("../utils/requestLogger");
 
@@ -96,13 +95,13 @@ router.post("/", leadCreateLimiter, validateCreateLead, async (req, res) => {
     console.log("Lead created:", lead);
 
     // Non-blocking lead notifications (admin + client acknowledgement).
-    sendLeadNotificationEmails(lead._id).catch((err) => {
+    leadEmailNotifications.sendLeadNotificationEmails(lead._id).catch((err) => {
       log("error", req, "Lead email notification failed", {
         leadId: String(lead._id),
         errMessage: err.message,
       });
     });
-    sendLeadWhatsAppNotifications(lead._id).catch((err) => {
+    leadWhatsAppNotifications.sendLeadWhatsAppNotifications(lead._id).catch((err) => {
       log("error", req, "Lead WhatsApp notification failed", {
         leadId: String(lead._id),
         errMessage: err.message,
@@ -631,7 +630,7 @@ router.post(
       });
     }
 
-    const result = await sendLeadNotificationEmails(req.params.id);
+    const result = await leadEmailNotifications.sendLeadNotificationEmails(req.params.id);
     return sendSuccess(res, req, {
       message: result.ok
         ? "Lead notifications processed successfully."
@@ -665,7 +664,7 @@ router.post(
       });
     }
 
-    const result = await sendLeadWhatsAppNotifications(req.params.id);
+    const result = await leadWhatsAppNotifications.sendLeadWhatsAppNotifications(req.params.id);
     return sendSuccess(res, req, {
       message: result.ok
         ? "Lead WhatsApp notifications processed successfully."

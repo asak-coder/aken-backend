@@ -148,12 +148,13 @@ export default function CareersClient() {
       return;
     }
 
-    // Production note: hook this up to an API endpoint with CSRF & malware scanning.
+    // R5 FIX: No backend endpoint exists for career applications.
+    // Must NOT show false success pretending a network request was made.
+    const applicantName = String(formData.get("fullName") ?? "").trim();
+    const applicantEmail = String(formData.get("email") ?? "").trim();
     setSubmitSuccess(
-      "Thank you for your application. Our HR team will review your bio-data and contact you shortly.",
+      `Thank you${applicantName ? `, ${applicantName}` : ""}! Your application details have been validated. Please email your resume to contact@aken.firm.in to complete the process. ${applicantEmail ? `Our HR team will contact you at ${applicantEmail}.` : ""}`
     );
-
-    // Optional UX: reset (keep success visible)
     form.reset();
     if (fileInputRef.current) fileInputRef.current.value = "";
     setResumeFile(null);

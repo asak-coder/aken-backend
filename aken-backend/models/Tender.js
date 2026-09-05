@@ -1,26 +1,21 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the tenders table (was: Mongoose Tender model).
+const { createRepository } = require("./createRepository");
 
-const tenderSchema = new mongoose.Schema(
-  {
-    tenderName: { type: String, trim: true, required: true, index: true },
-    client: { type: String, trim: true, required: true, index: true },
-    estimatedValue: { type: Number, default: 0, min: 0 },
-    submissionDate: { type: Date, index: true },
-    status: {
-      type: String,
-      enum: ["Preparing", "Submitted", "Under Review", "Won", "Lost"],
-      default: "Preparing",
-      index: true,
-    },
-    probability: { type: Number, default: 0, min: 0, max: 100 },
+const Tender = createRepository({
+  table: "tenders",
+  fieldMap: {
+    id: "_id",
+    tender_name: "tenderName",
+    client: "client",
+    estimated_value: "estimatedValue",
+    submission_date: "submissionDate",
+    status: "status",
+    probability: "probability",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {},
+  subTables: {},
+});
 
-// Common query patterns:
-// - list by status (newest first)
-// - list by submission date
-tenderSchema.index({ status: 1, createdAt: -1 });
-tenderSchema.index({ submissionDate: 1 });
-
-module.exports = mongoose.model("Tender", tenderSchema);
+module.exports = Tender;

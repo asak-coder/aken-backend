@@ -1,6 +1,7 @@
 const Lead = require("../models/Lead");
+// Live module namespace (bypasses require-time destructure freezing) so
+// callers/tests can stub sendEmail helpers through the module object.
 const sendEmail = require("./sendEmail");
-const { toSafeMailError } = require("./sendEmail");
 
 function escapeHtml(value) {
   if (typeof value !== "string") {
@@ -113,7 +114,7 @@ async function sendLeadNotificationEmails(leadId) {
   if (!adminAlreadySent && adminRecipients.length > 0) {
     try {
       const adminMail = buildAdminLeadEmail(lead);
-      await sendEmail({
+      await sendEmail.sendEmail({
         to: adminRecipients.join(","),
         subject: adminMail.subject,
         html: adminMail.html,
@@ -132,7 +133,7 @@ async function sendLeadNotificationEmails(leadId) {
         type: "admin",
         leadId: String(lead._id),
         to: adminRecipients,
-        err: toSafeMailError(error),
+        err: sendEmail.toSafeMailError(error),
         occurredAt: new Date().toISOString(),
       });
     }
@@ -142,7 +143,7 @@ async function sendLeadNotificationEmails(leadId) {
   if (!clientAlreadySent && lead.email) {
     try {
       const clientMail = buildClientAckEmail(lead);
-      await sendEmail({
+      await sendEmail.sendEmail({
         to: lead.email,
         subject: clientMail.subject,
         html: clientMail.html,
@@ -164,7 +165,7 @@ async function sendLeadNotificationEmails(leadId) {
         type: "client_ack",
         leadId: String(lead._id),
         to: [lead.email],
-        err: toSafeMailError(error),
+        err: sendEmail.toSafeMailError(error),
         occurredAt: new Date().toISOString(),
       });
     }

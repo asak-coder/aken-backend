@@ -52,13 +52,30 @@ async function proxyRequest(req: NextRequest, pathParts: string[] | undefined) {
 
   // Forward minimal safe headers.
   const headers = new Headers();
-  const csrf = req.headers.get("x-csrf-token");
-  if (csrf) {
-    headers.set("x-csrf-token", csrf);
-  }
   const contentType = req.headers.get("content-type");
   if (contentType) {
     headers.set("content-type", contentType);
+  }
+
+  // CSRF FIX: For unsafe methods, extract the CSRF token from the browser's
+  // aken_csrf cookie and forward it as X-CSRF-Token header. The CSRF cookie
+  // is non-HttpOnly so the browser includes it in the Cookie header. We parse
+  // it out and mirror it into the header that the backend csrfProtection
+  // middleware expects.
+  const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
+  if (!SAFE_METHODS.includes(req.method)) {
+    const cookieHeader = req.headers.get("cookie") || "";
+    const csrfMatch = cookieHeader
+      .split("; ")
+      .find((c) => c.startsWith("aken_csrf="));
+    if (csrfMatch) {
+      const csrfToken = decodeURIComponent(
+        csrfMatch.split("=").slice(1).join("="),
+      );
+      if (csrfToken) {
+        headers.set("x-csrf-token", csrfToken);
+      }
+    }
   }
 
   // Read body only when needed.

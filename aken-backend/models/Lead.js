@@ -1,236 +1,142 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the leads table (was: Mongoose Lead model).
+// Rebuilds the embedded `emailNotifications` / `whatsappNotifications`
+// sub-documents and the `notes` array so the API contract is unchanged.
+const { createRepository } = require("./createRepository");
 
-const leadSchema = new mongoose.Schema(
-  {
-    contactPerson: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 100,
-    },
-    email: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-      maxlength: 150,
-      match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-    },
-    companyName: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 150,
-    },
-    phone: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 20,
-      match: /^[0-9+\-\s()]{7,20}$/,
-    },
-    message: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 2000,
-    },
+const notificationDefaults = {
+  adminNotifiedAt: null,
+  clientAcknowledgedAt: null,
+  lastAttemptAt: null,
+  attemptCount: 0,
+  lastError: null,
+  lastErrorDetails: null,
+};
 
-    // Smart enquiry wizard fields (optional; stored for better quoting context)
-    serviceType: {
-      type: String,
-      trim: true,
-      maxlength: 200,
-      default: null,
-    },
-    projectLocation: {
-      type: String,
-      trim: true,
-      maxlength: 200,
-      default: null,
-    },
-    estimatedTonnage: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
-    projectType: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: null,
-    },
-    timeline: {
-      type: String,
-      trim: true,
-      maxlength: 80,
-      default: null,
-    },
-    utmSource: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-    },
-    utmMedium: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-    },
-    utmCampaign: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-    },
-    utmTerm: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-    },
-    utmContent: {
-      type: String,
-      trim: true,
-      maxlength: 120,
-    },
-    gclid: {
-      type: String,
-      trim: true,
-      maxlength: 200,
-    },
-    fbclid: {
-      type: String,
-      trim: true,
-      maxlength: 200,
-    },
-    msclkid: {
-      type: String,
-      trim: true,
-      maxlength: 200,
-    },
-    landingPage: {
-      type: String,
-      trim: true,
-      maxlength: 300,
-    },
-    referrerUrl: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-    },
-    status: {
-      type: String,
-      enum: ["New", "Contacted", "Quoted", "Closed"],
-      default: "New",
-    },
-    owner: {
-      type: String,
-      trim: true,
-      default: "Unassigned",
-      maxlength: 80,
-    },
+const Lead = createRepository({
+  table: "leads",
+  fieldMap: {
+    id: "_id",
+    contact_person: "contactPerson",
+    email: "email",
+    company_name: "companyName",
+    phone: "phone",
+    message: "message",
+    service_type: "serviceType",
+    project_location: "projectLocation",
+    estimated_tonnage: "estimatedTonnage",
+    project_type: "projectType",
+    timeline: "timeline",
+    utm_source: "utmSource",
+    utm_medium: "utmMedium",
+    utm_campaign: "utmCampaign",
+    utm_term: "utmTerm",
+    utm_content: "utmContent",
+    gclid: "gclid",
+    fbclid: "fbclid",
+    msclkid: "msclkid",
+    landing_page: "landingPage",
+    referrer_url: "referrerUrl",
+    status: "status",
+    owner: "owner",
+    owner_id: "ownerId",
+    owner_assigned_at: "ownerAssignedAt",
+    deal_value: "dealValue",
+    probability: "probability",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
+  },
+  relations: {
     ownerId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      default: null,
+      table: "users",
+      rowMap: {
+        id: "_id",
+        name: "name",
+        email: "email",
+        role: "role",
+      },
     },
-    ownerAssignedAt: {
-      type: Date,
-      default: null,
-    },
+  },
+  subTables: {
     emailNotifications: {
-      adminNotifiedAt: {
-        type: Date,
-        default: null,
-      },
-      clientAcknowledgedAt: {
-        type: Date,
-        default: null,
-      },
-      lastAttemptAt: {
-        type: Date,
-        default: null,
-      },
-      attemptCount: {
-        type: Number,
-        default: 0,
-      },
-      lastError: {
-        type: String,
-        trim: true,
-        maxlength: 500,
-        default: null,
-      },
-      lastErrorDetails: {
-        type: mongoose.Schema.Types.Mixed,
-        default: null,
+      table: "lead_email_notifications",
+      fkMap: { lead_id: "leadId" },
+      // B2: atomic INSERT ... ON CONFLICT (lead_id) DO UPDATE via RPC.
+      // Replaces the race-prone SELECT -> INSERT for every notification
+      // write (workers, save(), retry endpoints). No schema change.
+      upsertRpc: "upsert_lead_email_notification",
+      incrementColumn: "attempt_count",
+      rowMap: {
+        admin_notified_at: "adminNotifiedAt",
+        client_acknowledged_at: "clientAcknowledgedAt",
+        last_attempt_at: "lastAttemptAt",
+        attempt_count: "attemptCount",
+        last_error: "lastError",
+        last_error_details: "lastErrorDetails",
       },
     },
     whatsappNotifications: {
-      adminNotifiedAt: {
-        type: Date,
-        default: null,
+      table: "lead_whatsapp_notifications",
+      fkMap: { lead_id: "leadId" },
+      // B2: atomic INSERT ... ON CONFLICT (lead_id) DO UPDATE via RPC.
+      upsertRpc: "upsert_lead_whatsapp_notification",
+      incrementColumn: "attempt_count",
+      rowMap: {
+        admin_notified_at: "adminNotifiedAt",
+        client_acknowledged_at: "clientAcknowledgedAt",
+        last_attempt_at: "lastAttemptAt",
+        attempt_count: "attemptCount",
+        last_error: "lastError",
+        last_error_details: "lastErrorDetails",
+        last_fallback_url: "lastFallbackUrl",
       },
-      clientAcknowledgedAt: {
-        type: Date,
-        default: null,
-      },
-      lastAttemptAt: {
-        type: Date,
-        default: null,
-      },
-      attemptCount: {
-        type: Number,
-        default: 0,
-      },
-      lastError: {
-        type: String,
-        trim: true,
-        maxlength: 500,
-        default: null,
-      },
-      lastErrorDetails: {
-        type: mongoose.Schema.Types.Mixed,
-        default: null,
-      },
-      lastFallbackUrl: {
-        type: String,
-        trim: true,
-        maxlength: 500,
-        default: null,
-      },
-    },
-    notes: [
-      {
-        text: {
-          type: String,
-          trim: true,
-          maxlength: 2000,
-        },
-        addedBy: {
-          type: String,
-          trim: true,
-          maxlength: 80,
-        },
-        createdAt: { type: Date, default: Date.now },
-      },
-    ],
-    dealValue: {
-      type: Number,
-      min: 0,
-    },
-    probability: {
-      type: Number,
-      default: 50,
-      min: 0,
-      max: 100,
     },
   },
-  { timestamps: true }
-);
+  joins: [
+    {
+      apiName: "notes",
+      table: "lead_notes",
+      fkColumn: "lead_id",
+      cardinality: "1:N",
+      orderBy: { created_at: 1 },
+      rowMap: {
+        id: "_id",
+        text: "text",
+        added_by: "addedBy",
+        created_at: "createdAt",
+      },
+    },
+    {
+      apiName: "emailNotifications",
+      table: "lead_email_notifications",
+      fkColumn: "lead_id",
+      cardinality: "1:1",
+      defaults: notificationDefaults,
+      rowMap: {
+        admin_notified_at: "adminNotifiedAt",
+        client_acknowledged_at: "clientAcknowledgedAt",
+        last_attempt_at: "lastAttemptAt",
+        attempt_count: "attemptCount",
+        last_error: "lastError",
+        last_error_details: "lastErrorDetails",
+      },
+    },
+    {
+      apiName: "whatsappNotifications",
+      table: "lead_whatsapp_notifications",
+      fkColumn: "lead_id",
+      cardinality: "1:1",
+      defaults: { ...notificationDefaults, lastFallbackUrl: null },
+      rowMap: {
+        admin_notified_at: "adminNotifiedAt",
+        client_acknowledged_at: "clientAcknowledgedAt",
+        last_attempt_at: "lastAttemptAt",
+        attempt_count: "attemptCount",
+        last_error: "lastError",
+        last_error_details: "lastErrorDetails",
+        last_fallback_url: "lastFallbackUrl",
+      },
+    },
+  ],
+});
 
-leadSchema.index({ ownerId: 1, status: 1 });
-leadSchema.index({ createdAt: -1 });
-leadSchema.index({ utmSource: 1, utmCampaign: 1, createdAt: -1 });
-leadSchema.index({ "emailNotifications.adminNotifiedAt": 1, createdAt: -1 });
-leadSchema.index({ "whatsappNotifications.adminNotifiedAt": 1, createdAt: -1 });
-
-module.exports = mongoose.model("Lead", leadSchema);
+module.exports = Lead;

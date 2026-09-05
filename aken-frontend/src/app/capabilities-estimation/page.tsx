@@ -9,7 +9,7 @@ import { useMemo, useRef, useState } from "react";
  * Metadata should be defined in a parent Server Component/layout, so we omit it here.
  */
 
-type Step = 1 | 2 | "success";
+type Step = 1 | 2 | "success" | "error";
 
 function IconBolt(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -161,6 +161,8 @@ export default function CapabilitiesEstimationPage() {
   // Used for accessibility focus shift between steps
   const step2HeadingRef = useRef<HTMLHeadingElement | null>(null);
   const successRef = useRef<HTMLDivElement | null>(null);
+  const errorRef = useRef<HTMLDivElement | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const canCalculate =
     areaSqft >= 1000 && clearHeightM >= 4 && projectType && location.trim();
@@ -186,29 +188,17 @@ export default function CapabilitiesEstimationPage() {
 
     setBusy(true);
 
+    // Flatten payload to match backend validateCreateLead contract.
     const payload = {
-      source: "capabilities_estimation_estimator",
-      page: "/capabilities-estimation",
-      leadType: "PEB_BUDGETARY_ESTIMATE",
-      contact: {
-        email: email.trim(),
-        phone: mobile.trim(),
-        company: company.trim(),
-        location: loc,
-      },
-      project: {
-        areaSqft,
-        clearHeightM,
-        projectType,
-      },
-      // Internal-only: can be used by backend to generate/send PDF estimate.
-      estimate: {
-        budgetRangeINR: {
-          low: Math.round(estimate.low),
-          high: Math.round(estimate.high),
-        },
-        assumptions: estimate.assumptions,
-      },
+      contactPerson: company.trim(),
+      email: email.trim(),
+      companyName: company.trim(),
+      phone: mobile.trim(),
+      message: `Budgetary estimate request: ${projectType}, ${areaSqft.toLocaleString("en-IN")} sqft, ${clearHeightM}m clear height. Location: ${loc}. Source: capabilities_estimator`,
+      serviceType: projectType,
+      projectLocation: loc,
+      projectType: "New Construction",
+      timeline: "Planning Stage",
     };
 
     try {
@@ -218,18 +208,25 @@ export default function CapabilitiesEstimationPage() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Lead capture failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const msg =
+          errData?.error?.message ||
+          (Array.isArray(errData?.error?.details) && errData.error.details.length
+            ? errData.error.details.join(" ")
+            : "Unable to submit your request. Please try again.");
+        throw new Error(msg);
+      }
 
       setStep("success");
       requestAnimationFrame(() => {
         successRef.current?.focus();
       });
-    } catch {
-      // Fail-safe: still show success (lead magnet UX). Could be logged later.
-      setStep("success");
-      requestAnimationFrame(() => {
-        successRef.current?.focus();
-      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unable to submit your request. Please try again.";
+      setErrorMessage(msg);
+      setStep("error");
+      requestAnimationFrame(() => { errorRef.current?.focus(); });
     } finally {
       setBusy(false);
     }
@@ -822,6 +819,29 @@ export default function CapabilitiesEstimationPage() {
                     </p>
                   </div>
                 )}
+
+                {/* ERROR */}
+                {step === "error" && (
+                  <div
+                    ref={errorRef}
+                    tabIndex={-1}
+                    className="mt-8 rounded-2xl border border-red-200 bg-red-50 p-6 focus:outline-none"
+                  >
+                    <p className="text-sm font-semibold text-red-900">
+                      Unable to submit your request.
+                    </p>
+                    <p className="mt-2 text-sm text-red-800">
+                      {errorMessage || "Something went wrong. Please try again or contact us directly."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setStep(2)}
+                      className="mt-4 inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Right: Enterprise-style "Summary" (no price) */}
@@ -890,16 +910,7 @@ export default function CapabilitiesEstimationPage() {
                       </div>
                     </div>
 
-                    {/* Internal-only note (not a price, just a "confidence" feel) */}
-                    <div className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                      Internal range generated:{" "}
-                      <span className="font-semibold text-slate-900">
-                        {formatINR(estimate.low)} – {formatINR(estimate.high)}
-                      </span>{" "}
-                      <span className="text-slate-500">
-                        (hidden from user)
-                      </span>
-                    </div>
+                    {/* Price range is intentionally hidden from the user */}
                   </div>
 
                   <div className="mt-6 rounded-xl bg-slate-900 p-5 text-white">

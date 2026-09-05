@@ -1,27 +1,31 @@
-const mongoose = require("mongoose");
+// PostgreSQL repository for the labour_entries table (was: Mongoose LabourEntry model).
+const { createRepository } = require("./createRepository");
 
-const labourSchema = new mongoose.Schema(
-  {
-    projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project",
-      required: true,
-      index: true,
-    },
-
-    role: { type: String, trim: true, required: true, index: true },
-    workers: { type: Number, default: 0, min: 0 },
-    workingDays: { type: Number, default: 0, min: 0 },
-    totalCost: { type: Number, default: 0, min: 0 },
-    outputQuantity: { type: Number, default: 0, min: 0 },
+const LabourEntry = createRepository({
+  table: "labour_entries",
+  fieldMap: {
+    id: "_id",
+    project_id: "projectId",
+    role: "role",
+    workers: "workers",
+    working_days: "workingDays",
+    total_cost: "totalCost",
+    output_quantity: "outputQuantity",
+    created_at: "createdAt",
+    updated_at: "updatedAt",
   },
-  { timestamps: true }
-);
+  relations: {
+    projectId: {
+      table: "projects",
+      rowMap: {
+        id: "_id",
+        project_name: "projectName",
+        client_name: "clientName",
+        status: "status",
+      },
+    },
+  },
+  subTables: {},
+});
 
-// Common query patterns:
-// - list by project, newest first
-// - list by project + role
-labourSchema.index({ projectId: 1, createdAt: -1 });
-labourSchema.index({ projectId: 1, role: 1 });
-
-module.exports = mongoose.model("LabourEntry", labourSchema);
+module.exports = LabourEntry;
